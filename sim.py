@@ -100,7 +100,7 @@ class Car:
     collided = False
 
 
-    get_segments(self):
+    def get_segments(self):
         x = self.state[0]
         y = self.state[1]
         t = self.state[2]
@@ -113,7 +113,7 @@ class Car:
         p4 = np.array([x-dx, y+dy])
         return [[p1,p2],[p2,p3],[p3,p4],[p4, p1]]
     
-    intersect(self, other):
+    def intersect(self, other):
         for seg1 in self.get_segments():
             for seg2 in other.get_segments():
                 if(intersect_segments(seg1, seg2)):
@@ -121,7 +121,7 @@ class Car:
         return False
 
     #apply control inputs, changing velocity
-    control(self, v, dphi):
+    def control(self, v, dphi):
         if v < V_MIN:
             v = V_MIN
         if v > V_MAX:
@@ -136,21 +136,24 @@ class Car:
         self.velocity = v * mat1 + dphi * mat2
 
     #step the car, changing state as per velocity
-    step(self):
+    def step(self):
         if not self.collided:
             self.state += TIMESTEP * self.velocity
 
 class Sim:
     cars = []
 
-    spawn_car(self, x, y, theta):
+    def spawn_car(self, x, y, theta):
         car = Car()
         car.state[0] = x
         car.state[1] = y
         car.state[2] = theta
         self.cars.push(car)
 
-    raycast(self, x, y, angle):
+    def remove_car(index):
+        del car[index]
+
+    def raycast(self, x, y, angle):
         best = float('inf')
         for car in self.cars:
             for segment in car.get_segments():
@@ -159,7 +162,7 @@ class Sim:
                     best = d
         return best
 
-    lidar(self, car):
+    def lidar(self, car):
         x = car.state[0]
         y = car.state[1]
         angle = car.state[2]
@@ -167,7 +170,17 @@ class Sim:
         ret.append(self.raycast(x, y, angle + LIDAR_MAX))
         return ret
 
-    check_collisions(self):
+    #returns a list of the other cars sorted by distance
+    def nearby_cars(self, car):
+        ret = []
+        for other in self.cars:
+            if other is not car:
+                ret.append(other)
+        return sorted(ret, lambda c: (c.state[0] - car.state[0])**2 + (c.state[1] - car.state[1])**2)
+
+
+
+    def check_collisions(self):
         ret = False
         for i in range(len(self.cars)):
             for j in range(i, len(self.cars)):
@@ -179,17 +192,16 @@ class Sim:
                             ret = True
         return False
 
-    step(self):
+    def step(self):
         for car in self.cars:
             car.step()
         if self.check_collisions():
             #the cars stop moving if collided
             #some naive handling, like set the NN cost to infinity
             pass
+        #integrate map collisions here
 
-    get_cost():
+    def get_cost():
         pass
-    __init__(self):
+    def __init__(self):
         pass
-
-    
