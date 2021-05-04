@@ -82,17 +82,17 @@ class Map:
 		boundary_R = (R @ self.boundary_points.T).T
 		point_R = R @ point
 		# --DEBUG--
-		print('Plotting...')
-		plt.clf()
-		plt.plot(*point_R, 'ro')
-		print(f'\t{boundary_R.shape}')
-		for i in range(boundary_R.shape[0]):
-			if i % 1000 == 0: print(f'\t{i}')
-			plt.plot(*boundary_R[i], 'bo')
-		self.draw_car(plt.gca(), *point_R, 0)
-		print('\tSaving')
-		plt.savefig(f'img/test_car_{int(time.time())}.png')
-		print('\tFinished')
+		# print('Plotting...')
+		# plt.clf()
+		# plt.plot(*point_R, 'ro')
+		# print(f'\t{boundary_R.shape}')
+		# for i in range(boundary_R.shape[0]):
+		# 	if i % 1000 == 0: print(f'\t{i}')
+		# 	plt.plot(*boundary_R[i], 'bo')
+		# self.draw_car(plt.gca(), *point_R, 0)
+		# print('\tSaving')
+		# plt.savefig(f'img/test_car_{int(time.time())}.png')
+		# print('\tFinished')
 		# --DEBUG--
 		# Check the vectors between all boundary points and the point
 		collisions = np.where(np.logical_and(
@@ -151,18 +151,23 @@ class Map:
 
 	def draw_car(self, ax, x, y, angle):
 		FRONT_RATIO = 0.2
+		# Find center point
+		pos = np.array([x, y])
+		R = rot_matrix(-angle)
+		top_right_R = (R @ pos) - np.array([self.car_width / 2, self.car_height / 2])
+		top_right = R.T @ top_right_R
 		ax.add_patch(Rectangle(
-				(x, y),
-				self.car_width,
-				self.car_height,
-				angle=angle*180/np.pi,
-				edgecolor='black',
-				facecolor='white',
-				fill=True,
-				lw=2
-			))
+			top_right,
+			self.car_width,
+			self.car_height,
+			angle=angle*180/np.pi,
+			edgecolor='black',
+			facecolor='white',
+			fill=True,
+			lw=2
+		))
 		ax.add_patch(Rectangle(
-			(x, y),
+			top_right,
 			self.car_width,
 			self.car_height*FRONT_RATIO,
 			angle=angle*180/np.pi,

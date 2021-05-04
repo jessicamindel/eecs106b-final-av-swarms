@@ -11,12 +11,11 @@ if __name__ == '__main__':
 	parser.add_argument('--angle_min', type=float, required=False)
 	parser.add_argument('--angle_max', type=float, required=False)
 
-	args = parser.parse_args(['5', 'maps/task1.png'])
-	# s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or -np.pi/3, args.angle_max or np.pi/3)
+	args = parser.parse_args()
 	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or 0, args.angle_max or 2*np.pi)
-	# s.render()
+	s.render()
     # I put the pause here!
-	# plt.pause(3)
+	plt.pause(10)
 
 	# FIXME: Some problems right off the bat:
 	# - I can't keep the plt window open without pausing it for a long period of time.
