@@ -28,17 +28,17 @@ class Map:
 		start_points = np.where(np.logical_and(img_r < 250, img_g < 250, img_b == 255))
 		self.start_points = np.zeros((len(start_points[0]), 2))
 		self.start_points[:,0] = start_points[1] # col = x
-		self.start_points[:,1] = (self.img.shape[0] - 1) - start_points[0] # row = y
+		self.start_points[:,1] = start_points[0] # row = y
 
 		end_points = np.where(np.logical_and(img_r == 255, img_g < 250, img_b < 250))
 		self.end_points = np.zeros((len(end_points[0]), 2))
 		self.end_points[:,0] = end_points[1] # col = x
-		self.end_points[:,1] = (self.img.shape[0] - 1) - end_points[0] # row = y
+		self.end_points[:,1] = end_points[0] # row = y
 
 		boundary_points = np.where(np.logical_and(img_r == 0, img_g == 0, img_b == 0))
 		self.boundary_points = np.zeros((len(boundary_points[0]), 2))
 		self.boundary_points[:,0] = boundary_points[1] # col = x
-		self.boundary_points[:,1] = (self.img.shape[0] - 1) - boundary_points[0] # row = y
+		self.boundary_points[:,1] = boundary_points[0] # row = y
 
 		# Determine car size for rendering and scan
 		car_size_points = np.where(np.logical_and(img_r < 250, img_g == 255, img_b < 250))
@@ -134,23 +134,31 @@ class Map:
 		ret = [self.raycast(x, y, t) for t in np.linspace(self.angle_min + angle, self.angle_max + angle, n_rays, endpoint=True)]
 		return ret
 
-	def render(self, cars, pause_length=0.001):
+	def render(self, cars):
 		self.ax.clear()
 		self.ax.imshow(self.img)
 		for car in cars:
 			x, y, angle, _ = car.state
+			FRONT_RATIO = 0.2
 			self.ax.add_patch(Rectangle(
 				(x, y),
 				self.car_width,
 				self.car_height,
-				angle=angle,
+				angle=angle*180/np.pi,
 				edgecolor='black',
 				facecolor='white',
 				fill=True,
 				lw=2
 			))
+			self.ax.add_patch(Rectangle(
+                (x, y),
+                self.car_width,
+                self.car_height*FRONT_RATIO,
+                angle=angle*180/np.pi,
+                edgecolor='green',
+                facecolor='white',
+                fill=True,
+                lw=2
+            ))
 		self.ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-		# FIXME: I probably shouldn't be pausing in this function,
-		# but not sure where else to do it. Let me know if you have thoughts.
-		plt.pause(pause_length)

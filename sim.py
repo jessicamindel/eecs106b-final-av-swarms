@@ -127,14 +127,22 @@ class Sim:
                             ret = True
         return False
 
+    def render(self):
+        return self.map.render(self.cars)
+
     def step(self):
+        obs, reward, done, info = {}, 0, False, {}
+
         for car in self.cars:
             car.step()
         if self.check_collisions():
             #the cars stop moving if collided
             #some naive handling, like set the NN cost to infinity
+            # ^^^ maybe like "reward -= 100"
             pass
         #integrate map collisions here
 
-    def get_cost(self):
+        return obs, reward, done, info
+
+    def get_reward(self):
         pass
