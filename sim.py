@@ -1,6 +1,7 @@
 import numpy as np
 from utils import *
 from sim_map import Map
+import matplotlib.pyplot as plt
 
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
@@ -78,10 +79,13 @@ class Car:
 class Sim:
     def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi):
         self.cars = []
-        self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max)
+        self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max, LIDAR_MIN, LIDAR_MAX)
         for i in range(num_cars):
             start, end, start_angle = self.map.choose_path()
+            # TODO: Check collisions with all other cars; if so, throw it out
             self.spawn_car(*start, start_angle, *end)
+            # self.render()
+            # plt.pause(1)
 
     def spawn_car(self, x, y, theta, x_goal, y_goal):
         car = Car((x, y, theta, 0), (x_goal, y_goal))

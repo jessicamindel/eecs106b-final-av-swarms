@@ -8,12 +8,14 @@ from utils import *
 rng = np.random.default_rng(42)
 
 class Map:
-	def __init__(self, img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi):
+	def __init__(self, img_path, path_reversal_probability=0, angle_min=0, angle_max=2*np.pi, lidar_angle_min=-np.pi, lidar_angle_max=np.pi):
 		self.img_path = img_path
 		self.img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
 		self.path_reversal_probability = path_reversal_probability
 		self.angle_min = angle_min
 		self.angle_max = angle_max
+		self.lidar_angle_min = lidar_angle_min
+		self.lidar_angle_max = lidar_angle_max
 
 		self.img_shape = self.img.shape[:2]
 
@@ -79,6 +81,19 @@ class Map:
 		R = rot_matrix(angle)
 		boundary_R = (R @ self.boundary_points.T).T
 		point_R = R @ point
+		# --DEBUG--
+		print('Plotting...')
+		plt.clf()
+		plt.plot(*point_R, 'ro')
+		print(f'\t{boundary_R.shape}')
+		for i in range(boundary_R.shape[0]):
+			if i % 1000 == 0: print(f'\t{i}')
+			plt.plot(*boundary_R[i], 'bo')
+		self.draw_car(plt.gca(), *point_R, 0)
+		print('\tSaving')
+		plt.savefig(f'img/test_car_{int(time.time())}.png')
+		print('\tFinished')
+		# --DEBUG--
 		# Check the vectors between all boundary points and the point
 		collisions = np.where(np.logical_and(
 			np.abs(boundary_R[:,0] - point_R[0]) <= self.car_width / 2,
@@ -131,16 +146,12 @@ class Map:
 
 	def lidar(self, car, n_rays):
 		x, y, angle, _ = car.state
-		ret = [self.raycast(x, y, t) for t in np.linspace(self.angle_min + angle, self.angle_max + angle, n_rays, endpoint=True)]
+		ret = [self.raycast(x, y, t) for t in np.linspace(self.lidar_angle_min + angle, self.lidar_angle_max + angle, n_rays, endpoint=True)]
 		return ret
 
-	def render(self, cars):
-		self.ax.clear()
-		self.ax.imshow(self.img)
-		for car in cars:
-			x, y, angle, _ = car.state
-			FRONT_RATIO = 0.2
-			self.ax.add_patch(Rectangle(
+	def draw_car(self, ax, x, y, angle):
+		FRONT_RATIO = 0.2
+		ax.add_patch(Rectangle(
 				(x, y),
 				self.car_width,
 				self.car_height,
@@ -150,15 +161,23 @@ class Map:
 				fill=True,
 				lw=2
 			))
-			self.ax.add_patch(Rectangle(
-                (x, y),
-                self.car_width,
-                self.car_height*FRONT_RATIO,
-                angle=angle*180/np.pi,
-                edgecolor='green',
-                facecolor='white',
-                fill=True,
-                lw=2
-            ))
+		ax.add_patch(Rectangle(
+			(x, y),
+			self.car_width,
+			self.car_height*FRONT_RATIO,
+			angle=angle*180/np.pi,
+			edgecolor='green',
+			facecolor='white',
+			fill=True,
+			lw=2
+		))
+		plt.plot(x, y, 'ko')
+
+	def render(self, cars):
+		self.ax.clear()
+		self.ax.imshow(self.img)
+		for car in cars:
+			x, y, angle, _ = car.state
+			self.draw_car(self.ax, x, y, angle)
 		self.ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
