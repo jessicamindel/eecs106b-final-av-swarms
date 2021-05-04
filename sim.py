@@ -34,8 +34,8 @@ class Car:
         # FIXME: Or should there be a goal theta? With the way the map is drawn, it doesn't make sense for there to be one.
         self.goal_state = np.array(goal_state) # x, y; theta and phi can be anything
         self.is_autonomous = is_autonomous # TODO: Implement human-driven car!
-
-    def get_segments(self):
+        
+    def get_vertices(self):
         x = self.state[0]
         y = self.state[1]
         t = self.state[2]
@@ -46,6 +46,10 @@ class Car:
         p2 = np.array([x+dx, y-dy])
         p3 = np.array([x-dx, y-dy])
         p4 = np.array([x-dx, y+dy])
+        return [p1, p2, p3, p4]
+        
+    def get_segments(self):     
+        [p1, p2, p3, p4] = self.get_vertices()
         return [[p1,p2],[p2,p3],[p3,p4],[p4, p1]]
     
     def intersect(self, other):
