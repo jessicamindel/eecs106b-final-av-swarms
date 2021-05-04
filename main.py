@@ -12,3 +12,4 @@ if __name__ == '__main__':
 
 	args = parser.parse_args()
 	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or -np.pi, args.angle_max or np.pi)
+	s.map.render(s.cars, pause_length=3)

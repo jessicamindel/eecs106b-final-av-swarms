@@ -134,10 +134,11 @@ class Map:
 		ret = [self.raycast(x, y, t) for t in np.linspace(self.angle_min + angle, self.angle_max + angle, n_rays, endpoint=True)]
 		return ret
 
-	def render(self, car_poses, pause_length=0.001):
+	def render(self, cars, pause_length=0.001):
 		self.ax.clear()
 		self.ax.imshow(self.img)
-		for x, y, angle in car_poses:
+		for car in cars:
+			x, y, angle, _ = car.state
 			self.ax.add_patch(Rectangle(
 				(x, y),
 				self.car_width,
