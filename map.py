@@ -3,6 +3,7 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import time
+from utils import *
 
 rng = np.random.default_rng(42)
 
@@ -13,6 +14,8 @@ class Map:
 		self.path_reversal_probability = path_reversal_probability
 		self.angle_min = angle_min
 		self.angle_max = angle_max
+
+		self.img_shape = self.img.shape[:2]
 
 		# Find all red, blue, and black pixels
 		img_r = self.img[:,:,0]
@@ -67,13 +70,13 @@ class Map:
 		# Randomly choose an angle
 		start_angle = rng.uniform(low=self.angle_min, high=self.angle_max)
 		# Ensure no collisions
-		if self.has_boundary_collision(start, start_angle):
+		if self.car_has_boundary_collision(start, start_angle):
 			return self.choose_path()
 		return start, end, start_angle
 
-	def has_boundary_collision(self, point, angle):
+	def car_has_boundary_collision(self, point, angle):
 		# Rotate the image and the point
-		R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+		R = rot_matrix(angle)
 		boundary_R = (R @ self.boundary_points.T).T
 		point_R = R @ point
 		# Check the vectors between all boundary points and the point
@@ -82,9 +85,54 @@ class Map:
 			np.abs(boundary_R[:,1] - point_R[1]) <= self.car_height / 2
 		))
 		return len(collisions[0]) > 0
+		# FIXME: On second thought, will this miss things that are in the box of a
+		# boundary pixel but aren't exactly on that pixel's corner?
 
-	def scan(self, car_idx, car_poses):
-		pass
+	def raycast(self, x, y, angle):
+		# Rotate image into these coordinates for purely horizontal ray traversal
+		R = rot_matrix(-angle)
+		pos_R = R @ np.array([x, y])
+		
+		# Form boundaries of image so they can also be rotated
+		height, width = self.img_shape
+		bl_R = R @ np.array([0, 0])
+		br_R = R @ np.array([width, 0])
+		tl_R = R @ np.array([0, height])
+		tr_R = R @ np.array([width, height])
+
+		# Find bounds of iteration and ray length for the only one it collides with
+		map_segments = [(bl_R, br_R), (br_R, tr_R), (tl_R, tr_R), (bl_R, tl_R)]
+		map_end = None
+		for seg in map_segments:
+			t1, map_end = intersect_ray_segment(pos_R, 0, *seg)
+			if t1 != -1:
+				break
+		map_end_x = map_end[0]
+
+		# Walk straight to the right with a step size of one pixel-ish (should I do half a pixel?)
+		x = pos_R[0]
+		while x <= map_end_x:
+			# Get current coord in original coordinates and floor to bottom left
+			curr_pos_R = np.array([x, pos_R[1]])
+			curr_pos_locked = np.floor(R.T @ curr_pos_R)
+			matches = np.where(np.logical_and(
+				curr_pos_locked[0] == self.boundary_points[:,0],
+				curr_pos_locked[1] == self.boundary_points[:,1]
+			))
+			# Check if boundary points contains that point
+			if len(matches[0]) > 0:
+				break
+			x += 0.5
+
+		# Get ray length from stopping point
+		x = min(x, map_end_x)
+		raylength = x - pos_R[0]
+		return raylength
+
+	def lidar(self, car, n_rays):
+		x, y, angle, _ = car.state
+		ret = [self.raycast(x, y, t) for t in np.linspace(self.angle_min + angle, self.angle_max + angle, n_rays, endpoint=True)]
+		return ret
 
 	def render(self, car_poses, pause_length=0.001):
 		self.ax.clear()
