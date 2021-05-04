@@ -85,7 +85,7 @@ class Sim:
 
     def spawn_car(self, x, y, theta, x_goal, y_goal):
         car = Car((x, y, theta, 0), (x_goal, y_goal))
-        self.cars.push(car)
+        self.cars.append(car)
 
     def remove_car(self, index):
         del self.cars[index]

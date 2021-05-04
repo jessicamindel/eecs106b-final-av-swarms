@@ -57,10 +57,10 @@ class Map:
 	def choose_path(self):
 		'''Finds a starting and ending point for a car. Returns each as (row, col) indices.'''
 		# Randomly select a start point
-		start_idx = rng.randint(self.start_points.shape[0])
+		start_idx = rng.integers(self.start_points.shape[0])
 		start = self.start_points[start_idx,:]
 		# Randomly select an end point
-		end_idx = rng.randint(self.end_points.shape[0])
+		end_idx = rng.integers(self.end_points.shape[0])
 		end = self.end_points[end_idx,:]
 		# Possibly randomly reverse if allowed
 		if rng.uniform() < self.path_reversal_probability:
