@@ -86,7 +86,7 @@ class Sim:
         best = float('inf')
         for car in self.cars:
             for segment in car.get_segments():
-                d = intersect_ray_segment([x,y], angle, segment[0], segment[1])
+                d, _ = intersect_ray_segment([x,y], angle, segment[0], segment[1])
                 if d != -1 and d < best:
                     best = d
         return best

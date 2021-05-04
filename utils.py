@@ -59,8 +59,8 @@ def intersect_ray_segment(rayOrigin, angle, point1, point2):
     t1 = np.cross(v2, v1) / np.dot(v2, v3)
     t2 = np.dot(v1, v3) / np.dot(v2, v3)
     if t1 >= 0.0 and t2 >= 0.0 and t2 <= 1.0:
-        return t1
-    return -1
+        return t1, rayOrigin + rayDirection * t1
+    return -1, None
 
 # https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
 def ccw(A,B,C):
