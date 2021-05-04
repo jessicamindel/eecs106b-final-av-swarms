@@ -1,5 +1,6 @@
 import numpy as np
 from utils import *
+from sim_map import Map
 
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
@@ -28,6 +29,10 @@ class Car:
     velocity = np.array([0,0,0,0]) #dx, dy, theta, dphi
     collided = False
 
+    def __init__(self, start_state, goal_state):
+        self.state = np.array(start_state)
+        self.goal_state = np.array(goal_state) # x, y; theta and phi can be anything
+        # FIXME: Or should there be a goal theta? With the way the map is drawn, it doesn't make sense for there to be one.
 
     def get_segments(self):
         x = self.state[0]
@@ -70,17 +75,19 @@ class Car:
             self.state += TIMESTEP * self.velocity
 
 class Sim:
-    cars = []
+    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=0, angle_max=np.pi*2):
+        self.cars = []
+        self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max)
+        for i in range(num_cars):
+            start, end, start_angle = self.map.choose_path()
+            self.spawn_car(*start, start_angle, *end)
 
-    def spawn_car(self, x, y, theta):
-        car = Car()
-        car.state[0] = x
-        car.state[1] = y
-        car.state[2] = theta
+    def spawn_car(self, x, y, theta, x_goal, y_goal):
+        car = Car((x, y, theta, 0), (x_goal, y_goal))
         self.cars.push(car)
 
-    def remove_car(index):
-        del car[index]
+    def remove_car(self, index):
+        del self.cars[index]
 
     def raycast(self, x, y, angle):
         best = float('inf')
@@ -107,8 +114,6 @@ class Sim:
                 ret.append(other)
         return sorted(ret, lambda c: (c.state[0] - car.state[0])**2 + (c.state[1] - car.state[1])**2)
 
-
-
     def check_collisions(self):
         ret = False
         for i in range(len(self.cars)):
@@ -130,7 +135,5 @@ class Sim:
             pass
         #integrate map collisions here
 
-    def get_cost():
-        pass
-    def __init__(self):
+    def get_cost(self):
         pass
