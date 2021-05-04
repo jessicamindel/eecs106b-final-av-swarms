@@ -29,10 +29,11 @@ class Car:
     velocity = np.array([0,0,0,0]) #dx, dy, theta, dphi
     collided = False
 
-    def __init__(self, start_state, goal_state):
+    def __init__(self, start_state, goal_state, is_autonomous=True):
         self.state = np.array(start_state)
-        self.goal_state = np.array(goal_state) # x, y; theta and phi can be anything
         # FIXME: Or should there be a goal theta? With the way the map is drawn, it doesn't make sense for there to be one.
+        self.goal_state = np.array(goal_state) # x, y; theta and phi can be anything
+        self.is_autonomous = is_autonomous # TODO: Implement human-driven car!
 
     def get_segments(self):
         x = self.state[0]
@@ -75,7 +76,7 @@ class Car:
             self.state += TIMESTEP * self.velocity
 
 class Sim:
-    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=0, angle_max=np.pi*2):
+    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi):
         self.cars = []
         self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max)
         for i in range(num_cars):

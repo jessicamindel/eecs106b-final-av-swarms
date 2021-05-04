@@ -8,7 +8,7 @@ from utils import *
 rng = np.random.default_rng(42)
 
 class Map:
-	def __init__(self, img_path, path_reversal_probability = 0, angle_min = 0, angle_max = 2 * np.pi):
+	def __init__(self, img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi):
 		self.img_path = img_path
 		self.img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
 		self.path_reversal_probability = path_reversal_probability
