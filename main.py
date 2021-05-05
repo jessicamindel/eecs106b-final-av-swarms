@@ -15,22 +15,35 @@ if __name__ == '__main__':
 	parser.add_argument('--nogui', action='store_true', default=False, required=False)
 
 	args = parser.parse_args()
+
+	if not args.nogui:
+		# Create window for rendering
+		plt.ion()
+		fig, ax = plt.subplots(figsize=(8,8))
+		fig.canvas.set_window_title('AV Swarm Simulator')
+		plt.show()
+
 	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or 0, args.angle_max or 2*np.pi, save_video=args.save_video, timestep=args.timestep)
 	
 	if not args.nogui:
-		s.render()
+		s.render(ax=ax)
 		plt.pause(0.01)
 
 	# ACTIONS = [(200, 0)] #, (0, np.pi/6), (50, np.pi/12)]
-	ACTIONS = [(10, 0.01)]
+	# Takes 20 steps to turn around
+	ACTIONS = [(100, 0.1)]
 	rng = np.random.default_rng(42)
 	car_actions = [rng.choice(ACTIONS) for _ in range(args.num_cars)]
 
+	import time
+	starttime = time.time()
 	for i in range(80):
-		s.step(car_actions)
+		obs, reward, done, info = s.step(car_actions)
+		print('reward', reward)
 		if not args.nogui:
-			s.render()
+			s.render(ax=ax)
 			plt.pause(0.01)
+	print('total time', time.time()-starttime)
 
 	if not args.nogui:
 		plt.pause(10)
