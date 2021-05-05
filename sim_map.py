@@ -81,19 +81,6 @@ class Map:
 		R = rot_matrix(angle)
 		boundary_R = (R @ self.boundary_points.T).T
 		point_R = R @ point
-		# --DEBUG--
-		# print('Plotting...')
-		# plt.clf()
-		# plt.plot(*point_R, 'ro')
-		# print(f'\t{boundary_R.shape}')
-		# for i in range(boundary_R.shape[0]):
-		# 	if i % 1000 == 0: print(f'\t{i}')
-		# 	plt.plot(*boundary_R[i], 'bo')
-		# self.draw_car(plt.gca(), *point_R, 0)
-		# print('\tSaving')
-		# plt.savefig(f'img/test_car_{int(time.time())}.png')
-		# print('\tFinished')
-		# --DEBUG--
 		# Check the vectors between all boundary points and the point
 		collisions = np.where(np.logical_and(
 			np.abs(boundary_R[:,0] - point_R[0]) <= self.car_width / 2,
@@ -149,13 +136,14 @@ class Map:
 		ret = [self.raycast(x, y, t) for t in np.linspace(self.lidar_angle_min + angle, self.lidar_angle_max + angle, n_rays, endpoint=True)]
 		return ret
 
-	def draw_car(self, ax, x, y, angle):
+	def draw_car(self, ax, x, y, angle, center='point', text=None):
 		FRONT_RATIO = 0.2
 		# Find center point
 		pos = np.array([x, y])
 		R = rot_matrix(-angle)
-		top_right_R = (R @ pos) - np.array([self.car_width / 2, self.car_height / 2])
-		top_right = R.T @ top_right_R
+		pos_R = R @ pos
+		top_right = R.T @ (pos_R - np.array([self.car_width / 2, self.car_height / 2]))
+		top_middle_short = R.T @ (pos_R - np.array([0, self.car_height / 4]))
 		ax.add_patch(Rectangle(
 			top_right,
 			self.car_width,
@@ -174,15 +162,20 @@ class Map:
 			edgecolor='green',
 			facecolor='white',
 			fill=True,
-			lw=2
+			lw=3
 		))
-		plt.plot(x, y, 'ko')
+		if center == 'point':
+			plt.plot(x, y, 'ko', markersize=4)
+		elif center == 'vector': # FIXME: Doesn't work :(
+			plt.plot(x, y, top_middle_short[0] - x, top_middle_short[1] - y)
+		elif center == 'text' and text is not None:
+			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
 	def render(self, cars):
 		self.ax.clear()
 		self.ax.imshow(self.img)
-		for car in cars:
+		for i, car in enumerate(cars):
 			x, y, angle, _ = car.state
-			self.draw_car(self.ax, x, y, angle)
+			self.draw_car(self.ax, x, y, angle, center='text', text=str(i))
 		self.ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
