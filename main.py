@@ -11,13 +11,15 @@ if __name__ == '__main__':
 	parser.add_argument('--angle-min', type=float, required=False)
 	parser.add_argument('--angle-max', type=float, required=False)
 	parser.add_argument('--save-video', action='store_true', default=False, required=False)
+	parser.add_argument('--timestep', type=float, required=False, default=0.1)
 
 	args = parser.parse_args()
-	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or 0, args.angle_max or 2*np.pi, save_video=args.save_video)
+	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or 0, args.angle_max or 2*np.pi, save_video=args.save_video, timestep=args.timestep)
 	s.render()
 	plt.pause(0.01)
 
-	ACTIONS = [(10, 0), (0, np.pi/12), (5, np.pi/18)]
+	# ACTIONS = [(200, 0)] #, (0, np.pi/6), (50, np.pi/12)]
+	ACTIONS = [(10, np.pi/6)]
 	rng = np.random.default_rng(42)
 	car_actions = [rng.choice(ACTIONS) for _ in range(args.num_cars)]
 

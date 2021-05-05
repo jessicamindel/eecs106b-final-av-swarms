@@ -68,15 +68,21 @@ class Car:
         v = min(max(v, V_MIN), V_MAX)
         dphi = min(max(dphi, DPHI_MIN), DPHI_MAX)
 
-        mat1 = np.array([np.cos(self.state[2]), np.sin(self.state[2]), np.tan(self.state[3]) / CAR_L, 0])
+        # FIXME: This is also janky oh man
+        mat1 = np.array([np.cos(np.pi - self.state[2]), np.sin(np.pi - self.state[2]), np.tan(np.pi - self.state[3]) / CAR_L, 0])
         mat2 = np.array([0,0,0,1])
         self.velocity = v * mat1 + dphi * mat2
+        # FIXME: This is so janky
+        dx, dy, dtheta, dphi = self.velocity
+        self.velocity = np.array([dy, dx, dtheta, dphi])
 
     #step the car, changing state as per velocity
-    def step(self, action):
+    def step(self, action, timestep):
         if not self.collided:
             self.control(*action)
-            self.state += TIMESTEP * self.velocity
+            print('before', self.state, end='\t')
+            self.state += timestep * self.velocity
+            print('after', self.state)
 
     def distance_to_goal(self):
         x, y, _, _ = self.state
@@ -87,8 +93,9 @@ class Car:
         return self.distance_to_goal() <= threshold
 
 class Sim:
-    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True):
+    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True, timestep=0.1):
         self.save_video = save_video
+        self.timestep = timestep
         self.cars = []
         self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max, LIDAR_MIN, LIDAR_MAX)
         i = 0
@@ -167,7 +174,7 @@ class Sim:
         for i, (car, action) in enumerate(zip(self.cars, actions)):
             x, y, theta, phi = car.state
             v, dphi = action
-            car.step(action)
+            car.step(action, self.timestep)
             # Reward closeness to goal
             reward += min(car.distance_to_goal(), 3)
             # Penalize map collisions
@@ -216,4 +223,4 @@ class Sim:
 
     def close(self):
         if self.save_video: # TEMP: Eventually move this into map probably
-            self.map.close()
+            self.map.close(self.timestep)

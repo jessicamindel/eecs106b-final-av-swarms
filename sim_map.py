@@ -184,5 +184,5 @@ class Map:
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 		if save_frame: matplotrecorder.save_frame()
 
-	def close(self):
-		matplotrecorder.save_movie(f'img/av_swarm_{int(time.time())}.mp4', 0.1)
+	def close(self, timestep):
+		matplotrecorder.save_movie(f'img/av_swarm_{int(time.time())}.mp4', timestep)
