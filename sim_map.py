@@ -113,6 +113,7 @@ class Map:
 
 		# Walk straight to the right with a step size of one pixel-ish (should I do half a pixel?)
 		x = pos_R[0]
+		collided = False
 		while x <= map_end_x:
 			# Get current coord in original coordinates and floor to bottom left
 			curr_pos_R = np.array([x, pos_R[1]])
@@ -123,12 +124,13 @@ class Map:
 			))
 			# Check if boundary points contains that point
 			if len(matches[0]) > 0:
+				collided = True
 				break
 			x += 0.5
 
 		# Get ray length from stopping point
 		x = min(x, map_end_x)
-		raylength = x - pos_R[0]
+		raylength = x - pos_R[0] if collided else float('inf')
 		return raylength
 
 	def lidar(self, car, n_rays):
