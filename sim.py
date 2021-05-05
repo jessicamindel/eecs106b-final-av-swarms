@@ -89,11 +89,9 @@ class Sim:
         while i < num_cars:
             start, end, start_angle = self.map.choose_path()
             # TEMP: Once check_collisions is fixed, uncomment this line.
-            if True: # not self.check_collisions_with(*start, start_angle):
+            if not self.check_collisions_with(*start, start_angle):
                 i += 1
                 self.spawn_car(*start, start_angle, *end)
-                self.render()
-                plt.pause(0.1)
 
     def spawn_car(self, x, y, theta, x_goal, y_goal):
         car = Car((x, y, theta, 0), (x_goal, y_goal))
