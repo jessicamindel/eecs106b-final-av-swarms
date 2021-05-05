@@ -68,7 +68,7 @@ class Car:
     
     def intersect(self, other, padding=0):
         dx = self.state[0] - other.state[0]
-        dy = self.state[1] - ohter.state[1]
+        dy = self.state[1] - other.state[1]
         if dx*dx + dy*dy < CAR_COLLIDER_BOUND2:
             return False
         for seg1 in self.get_segments(padding):
@@ -102,8 +102,11 @@ class Car:
         x_g, y_g = self.goal_state
         return np.sqrt((x - x_g)**2 + (y - y_g)**2)
 
-    def reached_goal(self, threshold=0.5):
-        return self.distance_to_goal() <= threshold
+    # FIXME: Should probably make the threshold smaller eventually.
+    def reached_goal(self, threshold=20):
+        x, y, theta, _ = self.state
+        return point_in_rect(self.goal_state, (x, y), theta, self.width, self.height, padding=threshold)
+        # return self.distance_to_goal() <= threshold
 
     def collide(self):
         # Sets collided to true and stops the car and stuff

@@ -83,3 +83,13 @@ def intersect_segments(seg1, seg2):
     C = seg2[0]
     D = seg2[1]
     return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
+
+def point_in_rect(point, rect_center, rect_angle, rect_width, rect_height, padding=0):
+    # Rotate the image and the point
+    R = rot_matrix(rect_angle)
+    point_R = R @ np.array(point)
+    center_R = R @ np.array(rect_center)
+    # Check within the bounds of the rectangle
+    in_horizontal = np.abs(point_R[0] - center_R[0]) <= rect_width / 2 + padding
+    in_vertical = np.abs(point_R[1] - center_R[1]) <= rect_height / 2 + padding
+    return in_horizontal and in_vertical
