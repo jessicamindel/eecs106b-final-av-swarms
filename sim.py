@@ -23,6 +23,7 @@ TIMESTEP = 0.05
 CAR_L = 5
 CAR_LEN = 6
 CAR_W = 3
+CAR_COLLIDER_BOUND2 = CAR_LEN * CAR_LEN + CAR_W * CAR_W
 
 LIDAR_MIN = -np.pi/2
 LIDAR_MAX = np.pi/2
@@ -61,6 +62,10 @@ class Car:
         return [[tl,bl],[bl,br],[tr,br],[tl,tr]]
     
     def intersect(self, other, padding=0):
+        dx = self.state[0] - other.state[0]
+        dy = self.state[1] - ohter.state[1]
+        if dx*dx + dy*dy < CAR_COLLIDER_BOUND2:
+            return False
         for seg1 in self.get_segments(padding):
             for seg2 in other.get_segments(padding):
                 if(intersect_segments(seg1, seg2)):
