@@ -51,7 +51,7 @@ class Map:
 	def get_car_size(self):
 		return self.car_width, self.car_height
 
-	def choose_path(self):
+	def choose_path(self, padding=0):
 		'''Finds a starting and ending point for a car. Returns each as (row, col) indices.'''
 		# Randomly select a start point
 		start_idx = rng.integers(self.start_points.shape[0])
@@ -67,19 +67,19 @@ class Map:
 		# Randomly choose an angle
 		start_angle = rng.uniform(low=self.angle_min, high=self.angle_max)
 		# Ensure no collisions
-		if self.car_has_boundary_collision(start, start_angle):
-			return self.choose_path()
+		if self.car_has_boundary_collision(start, start_angle, padding):
+			return self.choose_path(padding)
 		return start, end, start_angle
 
-	def car_has_boundary_collision(self, point, angle):
+	def car_has_boundary_collision(self, point, angle, padding=0):
 		# Rotate the image and the point
 		R = rot_matrix(angle)
 		boundary_R = (R @ self.boundary_points.T).T
 		point_R = R @ point
 		# Check the vectors between all boundary points and the point
 		collisions = np.where(np.logical_and(
-			np.abs(boundary_R[:,0] - point_R[0]) <= self.car_width / 2,
-			np.abs(boundary_R[:,1] - point_R[1]) <= self.car_height / 2
+			np.abs(boundary_R[:,0] - point_R[0]) <= self.car_width / 2 + padding,
+			np.abs(boundary_R[:,1] - point_R[1]) <= self.car_height / 2 + padding
 		))
 		return len(collisions[0]) > 0
 		# FIXME: On second thought, will this miss things that are in the box of a

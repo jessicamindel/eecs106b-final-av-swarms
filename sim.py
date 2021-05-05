@@ -45,23 +45,24 @@ class Car:
         self.width = width
         self.height = height
         
-    def get_vertices(self):
+    def get_vertices(self, padding=0):
         x, y, t, _ = self.state
         R = rot_matrix(-t)
         pos_R = R @ np.array([x, y])
-        tl = R.T @ (pos_R + np.array([-self.width / 2,  self.height / 2]))
-        tr = R.T @ (pos_R + np.array([ self.width / 2,  self.height / 2]))
-        bl = R.T @ (pos_R + np.array([-self.width / 2, -self.height / 2]))
-        br = R.T @ (pos_R + np.array([ self.width / 2, -self.height / 2]))
+        # FIXME: Should top and bottom be flipped? It might not matter.
+        tl = R.T @ (pos_R + np.array([-self.width / 2 - padding,  self.height / 2 + padding]))
+        tr = R.T @ (pos_R + np.array([ self.width / 2 + padding,  self.height / 2 + padding]))
+        bl = R.T @ (pos_R + np.array([-self.width / 2 - padding, -self.height / 2 - padding]))
+        br = R.T @ (pos_R + np.array([ self.width / 2 + padding, -self.height / 2 - padding]))
         return [tl, tr, bl, br]
         
-    def get_segments(self):     
-        [tl, tr, bl, br] = self.get_vertices()
+    def get_segments(self, padding=0):     
+        [tl, tr, bl, br] = self.get_vertices(padding)
         return [[tl,bl],[bl,br],[tr,br],[tl,tr]]
     
-    def intersect(self, other):
-        for seg1 in self.get_segments():
-            for seg2 in other.get_segments():
+    def intersect(self, other, padding=0):
+        for seg1 in self.get_segments(padding):
+            for seg2 in other.get_segments(padding):
                 if(intersect_segments(seg1, seg2)):
                     return True
         return False
@@ -99,12 +100,13 @@ class Car:
         self.velocity = np.zeros(4)
 
 class Sim(gym.Env):
-    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True, timestep=0.1, max_episode_steps=80):
+    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True, timestep=0.1, spawn_padding=1, max_episode_steps=80):
         self.save_video = save_video
         self.timestep = timestep
+        self.spawn_padding = spawn_padding
         self.max_episode_steps = max_episode_steps
         self.num_cars = num_cars
-        self.cars = []
+
         self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max, LIDAR_MIN, LIDAR_MAX)
 
         self.reset()
@@ -129,11 +131,12 @@ class Sim(gym.Env):
 
     def reset(self):
         self.time = 0
+        self.cars = []
         i = 0
         while i < self.num_cars:
             # TODO: Possibly add the ability to add cars mid-simulation.
-            start, end, start_angle = self.map.choose_path()
-            if not self.check_collisions_with(*start, start_angle):
+            start, end, start_angle = self.map.choose_path(padding=self.spawn_padding)
+            if not self.check_collisions_with(*start, start_angle, padding=self.spawn_padding):
                 i += 1
                 self.spawn_car(*start, start_angle, *end)
             # else: print(i, 'collided')
@@ -194,12 +197,12 @@ class Sim(gym.Env):
         count = sum([car.collided for car in self.cars])
         return count
 
-    def check_collisions_with(self, x, y, theta):
+    def check_collisions_with(self, x, y, theta, padding=0):
         '''Checks for collisions with a car not yet added to the simulation. Has no side effects.'''
         car = Car((x, y, theta, 0), (0, 0), self.map.car_width, self.map.car_height)
         for i in range(len(self.cars)):
-            for seg1 in car.get_segments():
-                for seg2 in self.cars[i].get_segments():
+            for seg1 in car.get_segments(padding):
+                for seg2 in self.cars[i].get_segments(padding):
                     if intersect_segments(seg1, seg2):
                         return True
         return False
