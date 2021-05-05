@@ -67,7 +67,11 @@ def ccw(A,B,C):
     return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x)
 
 # Return true if line segments AB and CD intersect
-def intersect_segments(A,B,C,D):
+def intersect_segments(seg1, seg2):
+    A = seg1[0]
+    B = seg1[1]
+    C = seg2[0]
+    D = seg2[1]
     return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
 
 def rot_matrix(angle):
