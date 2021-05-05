@@ -63,6 +63,8 @@ class Map:
 		self.car_width = np.max(car_size_points[1]) - np.min(car_size_points[1]) + 1
 		self.car_height = np.max(car_size_points[0]) - np.min(car_size_points[0]) + 1
 
+		self.user_text_point = (min(car_size_points[1]), min(car_size_points[0]))
+
 	def get_car_size(self):
 		return self.car_width, self.car_height
 
@@ -112,7 +114,6 @@ class Map:
 		# FIXME: On second thought, will this miss things that are in the box of a
 		# boundary pixel but aren't exactly on that pixel's corner?
 
-	# FIXME: It's possible I have the y direction wrong. This will need a revisit.
 	def raycast(self, x, y, angle):
 		# Rotate image into these coordinates for purely horizontal ray traversal
 		R = rot_matrix(-angle)
@@ -129,44 +130,22 @@ class Map:
 		map_segments = [(bl_R, br_R), (br_R, tr_R), (tl_R, tr_R), (bl_R, tl_R)]
 		map_end_R = None
 		for seg in map_segments:
-			t1, map_end_R = intersect_ray_segment(pos_R, 0, *seg)
+			t1, map_end_R = intersect_ray_segment(pos_R, -np.pi/2, *seg)
 			if t1 != -1:
 				break
 		map_end_y_R = map_end_R[1]
-
-		# # Walk straight up with a step size of one pixel-ish (should I do half a pixel?)
-		# y = pos_R[1]
-		# collided = False
-		# while y >= map_end_y:
-		# 	# Get current coord in original coordinates and floor to bottom left
-		# 	curr_pos_R = np.array([pos_R[0], y])
-		# 	curr_pos_locked = np.floor(R.T @ curr_pos_R)
-		# 	matches = np.where(np.logical_and(
-		# 		curr_pos_locked[0] == self.boundary_points[:,0],
-		# 		curr_pos_locked[1] == self.boundary_points[:,1]
-		# 	))
-		# 	# Check if boundary points contains that point
-		# 	if len(matches[0]) > 0:
-		# 		collided = True
-		# 		break
-		# 	y -= 0.5
-
-		# # Get ray length from stopping point
-		# y = max(y, map_end_y)
-		# raylength = y - pos_R[1] if collided else float('inf')
-		# return raylength
 		
 		# Create grid-aligned list of pixels over which to iterate
-		ys_R = np.arange(pos_R[1], map_end_y_R, 0.5)
+		ys_R = np.arange(pos_R[1], map_end_y_R, np.sign(map_end_y_R - pos_R[1]) * 0.5)
 		steps_R = np.zeros((ys_R.shape[0], 2))
 		steps_R[:,0] = pos_R[0]
 		steps_R[:,1] = ys_R
 		steps_locked = np.floor((R.T @ steps_R.T).T).astype(int)
 		
 		# Find the nearest boundary pixel
-		pixels_r = self.img[steps_locked[:,0], steps_locked[:,1], 0]
-		pixels_g = self.img[steps_locked[:,0], steps_locked[:,1], 1]
-		pixels_b = self.img[steps_locked[:,0], steps_locked[:,1], 2]
+		pixels_r = self.img[steps_locked[:,1], steps_locked[:,0], 0]
+		pixels_g = self.img[steps_locked[:,1], steps_locked[:,0], 1]
+		pixels_b = self.img[steps_locked[:,1], steps_locked[:,0], 2]
 		boundary_point_idxs = np.where(np.logical_and(pixels_r == 0, np.logical_and(pixels_g == 0, pixels_b == 0)))[0]
 
 		# If none was found, there is no bound on length
@@ -182,8 +161,8 @@ class Map:
 		ret = [self.raycast(x, y, t) for t in np.linspace(self.lidar_angle_min + angle, self.lidar_angle_max + angle, n_rays, endpoint=True)]
 		return ret
 
-	def draw_car(self, ax, x, y, angle, center='point', text=None):
-		FRONT_RATIO = 0.2
+	def draw_car(self, ax, x, y, angle, center='point', text=None, front_color='green'):
+		FRONT_RATIO = 0.1
 		# Find center point
 		pos = np.array([x, y])
 		R = rot_matrix(-angle)
@@ -205,10 +184,10 @@ class Map:
 			self.car_width,
 			self.car_height*FRONT_RATIO,
 			angle=angle*180/np.pi,
-			edgecolor='green',
-			facecolor='white',
+			edgecolor=front_color,
+			facecolor=front_color,
 			fill=True,
-			lw=3
+			lw=2
 		))
 		if center == 'point':
 			plt.plot(x, y, 'ko', markersize=4)
@@ -217,12 +196,25 @@ class Map:
 		elif center == 'text' and text is not None:
 			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
-	def render(self, cars, ax, save_frame=True):
+	def render(self, cars, non_rl_cars, ax, save_frame=True):
 		ax.clear()
 		ax.imshow(self.img)
 		for i, car in enumerate(cars):
 			x, y, angle, _ = car.state
 			self.draw_car(ax, x, y, angle, center='text', text=str(i))
+		for i, car in enumerate(non_rl_cars):
+			x, y, angle, _ = car.state
+			classname = type(car).__name__
+			if classname == 'ManualCar':
+				self.draw_car(ax, x, y, angle, center='text', text=f'M{i}', front_color='blue')
+				# Draw goal point
+				plt.plot(*car.goal_state, 'bo', markersize=10)
+				plt.text(*car.goal_state, f'M{i}', c='white', fontsize=6, ha='center', va='center')
+				# TODO: Draw velocity information
+				plt.text(*self.user_text_point, f'Step size:\nv: {car.v_curr}\ndphi: {car.dphi_curr}', fontsize=6, ha='left', va='top')
+			if classname == 'RandomCar':
+				self.draw_car(ax, x, y, angle, center='text', text=f'R{i}', front_color='red')
+
 		ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 		if save_frame: matplotrecorder.save_frame()

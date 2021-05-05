@@ -1,7 +1,9 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import itertools
+
 from utils import *
 from sim_map import Map
-import matplotlib.pyplot as plt
 
 import gym
 from gym import spaces
@@ -17,6 +19,9 @@ V_MAX = 100
 
 DPHI_MIN = -5
 DPHI_MAX = 5
+
+V_MANUAL_INCREMENT = 5.0
+DPHI_MANUAL_INCREMENT = 0.001
 
 TIMESTEP = 0.05
 
@@ -39,10 +44,10 @@ class Car:
     velocity = np.array([0,0,0,0]) #dx, dy, theta, dphi
     collided = False
 
-    def __init__(self, start_state, goal_state, width, height, is_autonomous=True):
+    def __init__(self, start_state, goal_state, width, height, is_rational=True):
         self.state = np.array(start_state)
         self.goal_state = np.array(goal_state) # x, y; theta and phi can be anything
-        self.is_autonomous = is_autonomous # TODO: Implement human-driven car!
+        self.is_rational = is_rational # TODO: Implement human-driven car!
         self.width = width
         self.height = height
         
@@ -63,7 +68,7 @@ class Car:
     
     def intersect(self, other, padding=0):
         dx = self.state[0] - other.state[0]
-        dy = self.state[1] - ohter.state[1]
+        dy = self.state[1] - other.state[1]
         if dx*dx + dy*dy < CAR_COLLIDER_BOUND2:
             return False
         for seg1 in self.get_segments(padding):
@@ -85,24 +90,127 @@ class Car:
         dx, dy, dtheta, dphi = self.velocity
         self.velocity = np.array([dy, dx, dtheta, dphi])
 
-    #step the car, changing state as per velocity
     def step(self, action, timestep):
         if not self.collided:
             self.control(*action)
             self.state += timestep * self.velocity
+            return action
+        return (0, 0)
 
     def distance_to_goal(self):
         x, y, _, _ = self.state
         x_g, y_g = self.goal_state
         return np.sqrt((x - x_g)**2 + (y - y_g)**2)
 
-    def reached_goal(self, threshold=0.5):
-        return self.distance_to_goal() <= threshold
+    # FIXME: Should probably make the threshold smaller eventually.
+    def reached_goal(self, threshold=20):
+        x, y, theta, _ = self.state
+        return point_in_rect(self.goal_state, (x, y), theta, self.width, self.height, padding=threshold)
+        # return self.distance_to_goal() <= threshold
 
     def collide(self):
         # Sets collided to true and stops the car and stuff
         self.collided = True
         self.velocity = np.zeros(4)
+
+class ManualCar(Car):
+    def __init__(self,
+        start_state, goal_state, width, height, figure,
+        key_forward='up', key_back='down', key_left='left', key_right='right',
+        key_v_up='j', key_v_down='h', key_dphi_up='u', key_dphi_down='y'
+    ):
+        super().__init__(start_state, goal_state, width, height, is_rational=False)
+        self.figure = figure
+
+        self.pressed_keys = dict()
+        self.pressed_keys[key_forward] = False
+        self.pressed_keys[key_back] = False
+        self.pressed_keys[key_left] = False
+        self.pressed_keys[key_right] = False
+        self.pressed_keys[key_v_up] = False
+        self.pressed_keys[key_v_down] = False
+        self.pressed_keys[key_dphi_up] = False
+        self.pressed_keys[key_dphi_down] = False
+
+        self.v_curr = 10.0
+        self.dphi_curr = 0.001
+
+        # Source for anonymous objects: https://stackoverflow.com/a/29480317/3843659
+        self.keys = type('',(object,),{
+            "forward": key_forward,
+            "back": key_back,
+            "left": key_left,
+            "right": key_right,
+            "v": type('',(object,),{
+                "up": key_v_up,
+                "down": key_v_down
+            }),
+            "dphi": type('',(object,),{
+                "up": key_dphi_up,
+                "down": key_dphi_down
+            })
+        })
+
+        # Set up keypress events
+        def onkeypress(event):
+            if event.key in self.pressed_keys:
+                self.pressed_keys[event.key] = True
+
+        def onkeyrelease(event):
+            if event.key in self.pressed_keys:
+                self.pressed_keys[event.key] = False
+
+        self.cid_keypress = figure.canvas.mpl_connect('key_press_event', onkeypress)
+        self.cid_keyrelease = figure.canvas.mpl_connect('key_release_event', onkeyrelease)
+
+    def step(self, timestep):
+        # TODO: Possibly keep a buffer of previously true keys so they
+        # can be acted on and then set to false if the timestep skipped them.
+
+        # Increase and decrease velocity
+        if self.pressed_keys[self.keys.v.up]:
+            self.v_curr += V_MANUAL_INCREMENT
+        if self.pressed_keys[self.keys.v.down]:
+            self.v_curr -= V_MANUAL_INCREMENT
+        self.v_curr = min(max(0, self.v_curr), V_MAX)
+        # Increase and decrease angular velocity
+        if self.pressed_keys[self.keys.dphi.up]:
+            self.dphi_curr += DPHI_MANUAL_INCREMENT
+        if self.pressed_keys[self.keys.dphi.down]:
+            self.dphi_curr -= DPHI_MANUAL_INCREMENT
+        self.dphi_curr = min(max(0, self.dphi_curr), DPHI_MAX)
+        
+        # If no keys are pressed, no action should be taken
+        v = 0.0
+        dphi = 0.0
+        # Move forward and back
+        if self.pressed_keys[self.keys.forward]:
+            v += self.v_curr
+        if self.pressed_keys[self.keys.back]:
+            v -= self.v_curr
+        # Turn left and right
+        if self.pressed_keys[self.keys.right]:
+            dphi += self.dphi_curr
+        if self.pressed_keys[self.keys.left]:
+            dphi -= self.dphi_curr
+        
+        return super().step((v, dphi), timestep)
+
+    def __del__(self):
+        self.figure.canvas.mpl_disconnect(self.cid_keypress)
+        self.figure.canvas.mpl_disconnect(self.cid_keyrelease)
+
+rng = np.random.default_rng(42)
+
+class RandomCar(Car):
+    def __init__(self, start_state, goal_state, width, height):
+        super().__init__(start_state, goal_state, width, height, is_rational=False)
+
+    def step(self, timestep):
+        # Generate a random action within input bounds
+        v = rng.uniform(V_MIN, V_MAX)
+        dphi = rng.uniform(DPHI_MIN, DPHI_MAX)
+        return super().step((v, dphi), timestep)
 
 class Sim(gym.Env):
     def __init__(self,
@@ -169,6 +277,7 @@ class Sim(gym.Env):
 
     def reset(self):
         self.time = 0
+        self.non_rl_cars = []
         self.agents = []
         i = 0
         while i < self.num_cars:
@@ -185,12 +294,40 @@ class Sim(gym.Env):
         car = Car((x, y, theta, 0), (x_goal, y_goal), self.map.car_width, self.map.car_height)
         self.agents.append(car)
 
-    def remove_car(self, index):
-        del self.agents[index]
+    def add_manual_car(self, figure,
+        key_forward='up', key_back='down', key_left='left', key_right='right',
+        key_v_up='j', key_v_down='h', key_dphi_up='u', key_dphi_down='y'
+    ):
+        while True:
+            start, end, start_angle = self.map.choose_path(padding=self.spawn_padding)
+            if not self.check_collisions_with(*start, start_angle, padding=self.spawn_padding):
+                break
+        car = ManualCar(
+            (*start, start_angle, 0), end, self.map.car_width, self.map.car_height, figure,
+            key_forward, key_back, key_left, key_right, key_v_up, key_v_down, key_dphi_up, key_dphi_down
+        )
+        self.non_rl_cars.append(car)
 
-    def raycast(self, x, y, angle):
+    def add_random_car(self, count=1):
+        for i in range(count):
+            while True:
+                start, end, start_angle = self.map.choose_path(padding=self.spawn_padding)
+                if not self.check_collisions_with(*start, start_angle, padding=self.spawn_padding):
+                    break
+            car = RandomCar((*start, start_angle, 0), end, self.map.car_width, self.map.car_height)
+            self.non_rl_cars.append(car)
+
+    def remove_car(self, index, non_rl=False):
+        if non_rl:
+            del self.non_rl_cars[index]
+        else:
+            del self.agents[index]
+
+    def raycast(self, x, y, angle, exclude = None):
         best = float('inf')
-        for car in self.agents:
+        for car in itertools.chain(self.agents, self.non_rl_cars):
+            if car is exclude:
+                continue
             for segment in car.get_segments():
                 d, _ = intersect_ray_segment([x,y], angle, segment[0], segment[1])
                 if d != -1 and d < best:
@@ -199,15 +336,14 @@ class Sim(gym.Env):
 
     def lidar(self, car):
         x, y, angle, _ = car.state
-        # ret = [self.raycast(x, y, t) for t in range(angle + LIDAR_MIN, angle + LIDAR_MAX, LIDAR_N-1)]
-        # ret.append(self.raycast(x, y, angle + LIDAR_MAX))
-        ret = [self.raycast(x, y, t) for t in np.linspace(LIDAR_MIN + angle, LIDAR_MAX + angle, LIDAR_N, endpoint=True)]
+        angle -= np.pi/2
+        ret = [self.raycast(x, y, t, car) for t in np.linspace(LIDAR_MIN + angle, LIDAR_MAX + angle, LIDAR_N, endpoint=True)]
         return ret
 
     #returns a list of the other cars sorted by distance
     def nearby_cars(self, car, num_cars=None):
         ret = []
-        for other in self.agents:
+        for other in itertools.chain(self.agents, self.non_rl_cars):
             if other is not car:
                 ret.append(other)
         ret.sort(key=lambda c: (c.state[0] - car.state[0])**2 + (c.state[1] - car.state[1])**2)
@@ -216,18 +352,19 @@ class Sim(gym.Env):
         return ret[:num_cars]
 
     def check_collisions(self):
+        all_cars = self.agents + self.non_rl_cars
         # Set car to collision mode
-        for i in range(len(self.agents)):
-            for j in range(i+1, len(self.agents)):
-                if self.agents[i].collided and self.agents[j].collided:
+        for i in range(len(all_cars)):
+            for j in range(i+1, len(all_cars)):
+                if all_cars[i].collided and all_cars[j].collided:
                     pass
                 else:
                     collided = False
-                    for seg1 in self.agents[i].get_segments():
-                        for seg2 in self.agents[j].get_segments():
+                    for seg1 in all_cars[i].get_segments():
+                        for seg2 in all_cars[j].get_segments():
                             if intersect_segments(seg1, seg2):
-                                self.agents[i].collide()
-                                self.agents[j].collide()
+                                all_cars[i].collide()
+                                all_cars[j].collide()
                                 collided = True
                                 break
                         if collided: break
@@ -237,17 +374,17 @@ class Sim(gym.Env):
 
     def check_collisions_with(self, x, y, theta, padding=0):
         '''Checks for collisions with a car not yet added to the simulation. Has no side effects.'''
-        car = Car((x, y, theta, 0), (0, 0), self.map.car_width, self.map.car_height)
-        for i in range(len(self.agents)):
-            for seg1 in car.get_segments(padding):
-                for seg2 in self.agents[i].get_segments(padding):
+        new_car = Car((x, y, theta, 0), (0, 0), self.map.car_width, self.map.car_height)
+        for car in itertools.chain(self.agents, self.non_rl_cars):
+            for seg1 in new_car.get_segments(padding):
+                for seg2 in car.get_segments(padding):
                     if intersect_segments(seg1, seg2):
                         return True
         return False
 
     def render(self, ax=None):
         assert ax is not None
-        self.map.render(self.agents, ax, save_frame=self.save_video)
+        self.map.render(self.agents, self.non_rl_cars, ax, save_frame=self.save_video)
 
     def get_obs(self):
         obs = []
@@ -271,6 +408,23 @@ class Sim(gym.Env):
             obs.append(curr_obs)
         return np.array(obs)
 
+    def get_per_car_reward(self, car, action):
+        x, y, theta, phi = car.state
+        v, dphi = action
+        reward = 0
+        # Reward closeness to goal
+        # The *30 and min(...,3) basically means to try to get within 10 pixels of the target
+        reward += min(1/car.distance_to_goal()*30, 3)
+        # Penalize map collisions
+        if car.collided or self.map.car_has_boundary_collision(np.array((x, y)), theta):
+            car.collide()
+            reward -= 3
+        # Penalize large rotational velocity
+        if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
+            # FIXME: Tweak values and also function shape (right now it's a shrug)
+            reward -= lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+        return reward
+
     def step(self, actions):
         '''actions: (v, dphi)'''
         actions[:,0] = actions[:,0] * self.v_action_scale
@@ -281,23 +435,20 @@ class Sim(gym.Env):
 
         to_remove = []
         for i, (car, action) in enumerate(zip(self.agents, actions)):
-            x, y, theta, phi = car.state
             v, dphi = action
             car.step(action, self.timestep)
-            # Reward closeness to goal
-            # The *30 and min(...,3) basically means to try to get within 10 pixels of the target
-            reward += min(1/car.distance_to_goal()*30, 3)
-            # Penalize map collisions
-            if car.collided or self.map.car_has_boundary_collision(np.array((x, y)), theta):
-                car.collide()
-                reward -= 3
-            # Penalize large rotational velocity
-            if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
-                # FIXME: Tweak values and also function shape (right now it's a shrug)
-                reward -= lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            reward += self.get_per_car_reward(car, action)
             # Once car reaches goal, prepare to remove from simulation
             if car.reached_goal():
                 to_remove.insert(0, i)
+
+        to_remove_non_rl = []
+        for i, car in enumerate(self.non_rl_cars):
+            action = car.step(self.timestep)
+            reward += self.get_per_car_reward(car, action)
+            # Once car reaches goal, prepare to remove from simulation
+            if car.reached_goal():
+                to_remove_non_rl.insert(0, i)
         
         # Penalize collisions between cars
         num_car_collisions = self.check_collisions()
@@ -310,9 +461,11 @@ class Sim(gym.Env):
         # Remove finished cars
         for i in to_remove:
             self.remove_car(i)
+        for i in to_remove_non_rl:
+            self.remove_car(i, non_rl=True)
 
         # Check number of cars remaining
-        done = len(self.agents) == 0
+        done = len(self.agents) == 0 and len(self.non_rl_cars) == 0
 
         return obs, reward, done, info
 
