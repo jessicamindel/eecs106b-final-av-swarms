@@ -119,29 +119,42 @@ class Sim(gym.Env):
             LIDAR_MIN, LIDAR_MAX
         )
 
+        self.OBS_LEN_PER_CAR = LIDAR_N + 4 + min(N_NEARBY_CARS, self.num_cars-1)*6
+        
+        # I'm not sure what these are. The values are guesses
+        self.dim_local_o = N_NEARBY_CARS
+        self.dim_flat_o = self.dim_local_o
+        self.dim_rec_o = (self.num_cars, self.OBS_LEN_PER_CAR)
+        self.dim_mean_embs = self.dim_rec_o
+
         self.reset()
 
-    # TODO
-    # @property
-    # def state_space(self):
-    #     obs_len_per_car =
-    #     return spaces.Box(low=-4, high=max(self.map.img_shape), shape=(len(self.cars) * 3,), dtype=np.float32)
+    @property
+    def state_space(self):
+        return spaces.Box(low=-max(self.map.img_shape), high=max(self.map.img_shape), shape=(len(self.agents) * self.OBS_LEN_PER_CAR,), dtype=np.float32)
 
-    # @property
-    # def observation_space(self):
-    #     return self.cars[0].observation_space
+    @property
+    def observation_space(self):
+        # Observation space of one car
+        ob_space = spaces.Box(low=-max(self.map.img_shape), high=max(self.map.img_shape), shape=(self.OBS_LEN_PER_CAR,), dtype=np.float32)
+        ob_space.dim_local_o = self.dim_local_o
+        ob_space.dim_flat_o = self.dim_flat_o
+        ob_space.dim_rec_o = self.dim_rec_o
+        ob_space.dim_mean_embs = self.dim_mean_embs
+        return ob_space
 
-    # @property
-    # def action_space(self):
-    #     return self.cars[0].action_space
+    @property
+    def action_space(self):
+        # Actino space of one car
+        return spaces.Box(low=np.array([V_MIN, PHI_MIN]), high=np.array([V_MAX, PHI_MAX]), dtype=np.float32)
 
     @property
     def is_terminal(self):
-        return len(self.cars) == 0 or self.time >= self.max_episode_steps
+        return len(self.agents) == 0 or self.time >= self.max_episode_steps
 
     def reset(self):
         self.time = 0
-        self.cars = []
+        self.agents = []
         i = 0
         while i < self.num_cars:
             # TODO: Possibly add the ability to add cars mid-simulation.
@@ -155,14 +168,14 @@ class Sim(gym.Env):
 
     def spawn_car(self, x, y, theta, x_goal, y_goal):
         car = Car((x, y, theta, 0), (x_goal, y_goal), self.map.car_width, self.map.car_height)
-        self.cars.append(car)
+        self.agents.append(car)
 
     def remove_car(self, index):
-        del self.cars[index]
+        del self.agents[index]
 
     def raycast(self, x, y, angle):
         best = float('inf')
-        for car in self.cars:
+        for car in self.agents:
             for segment in car.get_segments():
                 d, _ = intersect_ray_segment([x,y], angle, segment[0], segment[1])
                 if d != -1 and d < best:
@@ -179,7 +192,7 @@ class Sim(gym.Env):
     #returns a list of the other cars sorted by distance
     def nearby_cars(self, car, num_cars=None):
         ret = []
-        for other in self.cars:
+        for other in self.agents:
             if other is not car:
                 ret.append(other)
         ret.sort(key=lambda c: (c.state[0] - car.state[0])**2 + (c.state[1] - car.state[1])**2)
@@ -189,42 +202,42 @@ class Sim(gym.Env):
 
     def check_collisions(self):
         # Set car to collision mode
-        for i in range(len(self.cars)):
-            for j in range(i+1, len(self.cars)):
-                if self.cars[i].collided and self.cars[j].collided:
+        for i in range(len(self.agents)):
+            for j in range(i+1, len(self.agents)):
+                if self.agents[i].collided and self.agents[j].collided:
                     pass
                 else:
                     collided = False
-                    for seg1 in self.cars[i].get_segments():
-                        for seg2 in self.cars[j].get_segments():
+                    for seg1 in self.agents[i].get_segments():
+                        for seg2 in self.agents[j].get_segments():
                             if intersect_segments(seg1, seg2):
-                                self.cars[i].collide()
-                                self.cars[j].collide()
+                                self.agents[i].collide()
+                                self.agents[j].collide()
                                 collided = True
                                 break
                         if collided: break
         # Count number of cars caught in collision
-        count = sum([car.collided for car in self.cars])
+        count = sum([car.collided for car in self.agents])
         return count
 
     def check_collisions_with(self, x, y, theta, padding=0):
         '''Checks for collisions with a car not yet added to the simulation. Has no side effects.'''
         car = Car((x, y, theta, 0), (0, 0), self.map.car_width, self.map.car_height)
-        for i in range(len(self.cars)):
+        for i in range(len(self.agents)):
             for seg1 in car.get_segments(padding):
-                for seg2 in self.cars[i].get_segments(padding):
+                for seg2 in self.agents[i].get_segments(padding):
                     if intersect_segments(seg1, seg2):
                         return True
         return False
 
     def render(self, ax=None):
         assert ax is not None
-        self.map.render(self.cars, ax, save_frame=self.save_video)
+        self.map.render(self.agents, ax, save_frame=self.save_video)
 
     def get_obs(self):
         obs = []
         # Get observation (LIDAR, current velocity and pos, vel and pos of nearby cars)
-        for car in self.cars:
+        for car in self.agents:
             car_raycast = self.lidar(car)
             map_raycast = self.map.lidar(car, LIDAR_N)
             raycast = [min(c, m) for c, m in zip(car_raycast, map_raycast)]
@@ -248,7 +261,7 @@ class Sim(gym.Env):
         self.time += 1
 
         to_remove = []
-        for i, (car, action) in enumerate(zip(self.cars, actions)):
+        for i, (car, action) in enumerate(zip(self.agents, actions)):
             x, y, theta, phi = car.state
             v, dphi = action
             car.step(action, self.timestep)
@@ -280,7 +293,7 @@ class Sim(gym.Env):
             self.remove_car(i)
 
         # Check number of cars remaining
-        done = len(self.cars) == 0
+        done = len(self.agents) == 0
 
         return np.array(obs), reward, done, info
 
