@@ -30,28 +30,27 @@ class Car:
     velocity = np.array([0,0,0,0]) #dx, dy, theta, dphi
     collided = False
 
-    def __init__(self, start_state, goal_state, is_autonomous=True):
+    def __init__(self, start_state, goal_state, width, height, is_autonomous=True):
         self.state = np.array(start_state)
         # FIXME: Or should there be a goal theta? With the way the map is drawn, it doesn't make sense for there to be one.
         self.goal_state = np.array(goal_state) # x, y; theta and phi can be anything
         self.is_autonomous = is_autonomous # TODO: Implement human-driven car!
+        self.width = width
+        self.height = height
         
     def get_vertices(self):
-        x = self.state[0]
-        y = self.state[1]
-        t = self.state[2]
-        dx = np.cos(t) * CAR_W / 2
-        dy = np.sin(t) * CAR_LEN / 2
-
-        p1 = np.array([x+dx, y+dy])
-        p2 = np.array([x+dx, y-dy])
-        p3 = np.array([x-dx, y-dy])
-        p4 = np.array([x-dx, y+dy])
-        return [p1, p2, p3, p4]
+        x, y, t, _ = self.state
+        R = rot_matrix(-t)
+        pos_R = R @ np.array([x, y])
+        tl = R.T @ (pos_R + np.array([-self.width / 2,  self.height / 2]))
+        tr = R.T @ (pos_R + np.array([ self.width / 2,  self.height / 2]))
+        bl = R.T @ (pos_R + np.array([-self.width / 2, -self.height / 2]))
+        br = R.T @ (pos_R + np.array([ self.width / 2, -self.height / 2]))
+        return [tl, tr, bl, br]
         
     def get_segments(self):     
-        [p1, p2, p3, p4] = self.get_vertices()
-        return [[p1,p2],[p2,p3],[p3,p4],[p4, p1]]
+        [tl, tr, bl, br] = self.get_vertices()
+        return [[tl,bl],[bl,br],[tr,br],[tl,tr]]
     
     def intersect(self, other):
         for seg1 in self.get_segments():
@@ -80,6 +79,9 @@ class Car:
         if not self.collided:
             self.state += TIMESTEP * self.velocity
 
+    def distance_to_goal(self):
+        pass
+
 class Sim:
     def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True):
         self.save_video = save_video
@@ -88,13 +90,13 @@ class Sim:
         i = 0
         while i < num_cars:
             start, end, start_angle = self.map.choose_path()
-            # TEMP: Once check_collisions is fixed, uncomment this line.
             if not self.check_collisions_with(*start, start_angle):
                 i += 1
                 self.spawn_car(*start, start_angle, *end)
+            else: print(i, 'collided')
 
     def spawn_car(self, x, y, theta, x_goal, y_goal):
-        car = Car((x, y, theta, 0), (x_goal, y_goal))
+        car = Car((x, y, theta, 0), (x_goal, y_goal), self.map.car_width, self.map.car_height)
         self.cars.append(car)
 
     def remove_car(self, index):
@@ -131,7 +133,7 @@ class Sim:
             for j in range(i, len(self.cars)):
                 for seg1 in self.cars[i].get_segments():
                     for seg2 in self.cars[j].get_segments():
-                        if intersect_segments(seg1, seg2): # FIXME: This likely also doesn't work; see below.
+                        if intersect_segments(seg1, seg2):
                             self.cars[i].collided = True
                             self.cars[j].collided = True
                             ret = True
@@ -139,11 +141,11 @@ class Sim:
 
     def check_collisions_with(self, x, y, theta):
         '''Checks for collisions with a car not yet added to the simulation. Has no side effects.'''
-        car = Car((x, y, theta, 0), (0, 0))
+        car = Car((x, y, theta, 0), (0, 0), self.map.car_width, self.map.car_height)
         for i in range(len(self.cars)):
             for seg1 in car.get_segments():
                 for seg2 in self.cars[i].get_segments():
-                    if intersect_segments(seg1, seg2): # FIXME: This function call doesn't work. Not enough args.
+                    if intersect_segments(seg1, seg2):
                         return True
         return False
 
@@ -168,4 +170,5 @@ class Sim:
         pass
 
     def close(self):
-        self.map.close()
+        if self.save_video: # TEMP: Eventually move this into map probably
+            self.map.close()

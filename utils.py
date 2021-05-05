@@ -6,6 +6,10 @@ def magnitude(vector):
 def norm(vector):
    return np.array(vector)/magnitude(np.array(vector))
 
+def rot_matrix(angle):
+	'''Returns a 2D counterclockwise rotation matrix.'''
+	return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+
 def intersect_ray_segment(rayOrigin, angle, point1, point2):
     """
     >>> # Line segment
@@ -64,7 +68,7 @@ def intersect_ray_segment(rayOrigin, angle, point1, point2):
 
 # https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
 def ccw(A,B,C):
-    return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x)
+    return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
 
 # Return true if line segments AB and CD intersect
 def intersect_segments(seg1, seg2):
@@ -73,7 +77,3 @@ def intersect_segments(seg1, seg2):
     C = seg2[0]
     D = seg2[1]
     return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
-
-def rot_matrix(angle):
-	'''Returns a 2D counterclockwise rotation matrix.'''
-	return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
