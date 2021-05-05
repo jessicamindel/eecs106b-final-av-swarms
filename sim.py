@@ -161,6 +161,9 @@ class ManualCar(Car):
         self.cid_keyrelease = figure.canvas.mpl_connect('key_release_event', onkeyrelease)
 
     def step(self, timestep):
+        # TODO: Possibly keep a buffer of previously true keys so they
+        # can be acted on and then set to false if the timestep skipped them.
+
         # Increase and decrease velocity
         if self.pressed_keys[self.keys.v.up]:
             self.v_curr += V_MANUAL_INCREMENT

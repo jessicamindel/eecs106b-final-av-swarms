@@ -38,7 +38,8 @@ if __name__ == '__main__':
 
 	# ACTIONS = [(200, 0)] #, (0, np.pi/6), (50, np.pi/12)]
 	# Takes 20 steps to turn around
-	ACTIONS = [(100, 0.1)]
+	# ACTIONS = [(100, 0.1)]
+	ACTIONS = [(100, 0)] # TEMP: For LIDAR debugging
 	rng = np.random.default_rng(42)
 	car_actions = [rng.choice(ACTIONS) for _ in range(args.num_cars)]
 

@@ -131,44 +131,42 @@ class Map:
 		map_segments = [(bl_R, br_R), (br_R, tr_R), (tl_R, tr_R), (bl_R, tl_R)]
 		map_end_R = None
 		for seg in map_segments:
-			t1, map_end_R = intersect_ray_segment(pos_R, 0, *seg)
+			t1, map_end_R = intersect_ray_segment(pos_R, -np.pi/2, *seg)
 			if t1 != -1:
 				break
 		map_end_y_R = map_end_R[1]
 
-		# # Walk straight up with a step size of one pixel-ish (should I do half a pixel?)
-		# y = pos_R[1]
-		# collided = False
-		# while y >= map_end_y:
-		# 	# Get current coord in original coordinates and floor to bottom left
-		# 	curr_pos_R = np.array([pos_R[0], y])
-		# 	curr_pos_locked = np.floor(R.T @ curr_pos_R)
-		# 	matches = np.where(np.logical_and(
-		# 		curr_pos_locked[0] == self.boundary_points[:,0],
-		# 		curr_pos_locked[1] == self.boundary_points[:,1]
-		# 	))
-		# 	# Check if boundary points contains that point
-		# 	if len(matches[0]) > 0:
-		# 		collided = True
-		# 		break
-		# 	y -= 0.5
+		self.render(self.cars, self.non_rl_cars, self.ax, False)
 
-		# # Get ray length from stopping point
-		# y = max(y, map_end_y)
-		# raylength = y - pos_R[1] if collided else float('inf')
-		# return raylength
+		plt.plot(*map_end_R, 'yo')
+		plt.plot(*(R.T @ map_end_R), 'yo')
+
+		plt.plot((width, 0), (0, 0), c='red')
+		plt.plot((0, 0), (0, height), c='green')
+		plt.plot((0, width), (height, height), c='cyan')
+		plt.plot((width, width), (height, 0), c='magenta')
+
+		plt.plot((tr_R[0], tl_R[0]), (tr_R[1], tl_R[1]), c='red')
+		plt.plot((tl_R[0], bl_R[0]), (tl_R[1], bl_R[1]), c='green')
+		plt.plot((bl_R[0], br_R[0]), (bl_R[1], br_R[1]), c='cyan')
+		plt.plot((br_R[0], tr_R[0]), (br_R[1], tr_R[1]), c='magenta')
+
+		plt.pause(0.01)
 		
 		# Create grid-aligned list of pixels over which to iterate
-		ys_R = np.arange(pos_R[1], map_end_y_R, 0.5)
+		ys_R = np.arange(pos_R[1], map_end_y_R, np.sign(map_end_y_R - pos_R[1]) * 0.5)
 		steps_R = np.zeros((ys_R.shape[0], 2))
 		steps_R[:,0] = pos_R[0]
 		steps_R[:,1] = ys_R
 		steps_locked = np.floor((R.T @ steps_R.T).T).astype(int)
+
+		plt.plot(steps_locked[:,0], steps_locked[:,1], 'b-')
+		plt.pause(0.01)
 		
 		# Find the nearest boundary pixel
-		pixels_r = self.img[steps_locked[:,0], steps_locked[:,1], 0]
-		pixels_g = self.img[steps_locked[:,0], steps_locked[:,1], 1]
-		pixels_b = self.img[steps_locked[:,0], steps_locked[:,1], 2]
+		pixels_r = self.img[steps_locked[:,1], steps_locked[:,0], 0]
+		pixels_g = self.img[steps_locked[:,1], steps_locked[:,0], 1]
+		pixels_b = self.img[steps_locked[:,1], steps_locked[:,0], 2]
 		boundary_point_idxs = np.where(np.logical_and(pixels_r == 0, np.logical_and(pixels_g == 0, pixels_b == 0)))[0]
 
 		# If none was found, there is no bound on length
@@ -177,6 +175,10 @@ class Map:
 
 		# Otherwise, find the distance between the car and this pixel
 		boundary_point_R = steps_R[boundary_point_idxs[0]]
+
+		plt.plot(*(R.T @ boundary_point_R), 'ro')
+		plt.pause(0.01)
+
 		return pos_R[1] - boundary_point_R[1]
 
 	def lidar(self, car, n_rays):
@@ -220,6 +222,10 @@ class Map:
 			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
 	def render(self, cars, non_rl_cars, ax, save_frame=True):
+		self.cars = cars
+		self.non_rl_cars = non_rl_cars
+		self.ax = ax # TEMP: MUST REMOVE
+
 		ax.clear()
 		ax.imshow(self.img)
 		for i, car in enumerate(cars):
