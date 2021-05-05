@@ -127,34 +127,55 @@ class Map:
 
 		# Find bounds of iteration and ray length for the only one it collides with
 		map_segments = [(bl_R, br_R), (br_R, tr_R), (tl_R, tr_R), (bl_R, tl_R)]
-		map_end = None
+		map_end_R = None
 		for seg in map_segments:
-			t1, map_end = intersect_ray_segment(pos_R, 0, *seg)
+			t1, map_end_R = intersect_ray_segment(pos_R, 0, *seg)
 			if t1 != -1:
 				break
-		map_end_y = map_end[1]
+		map_end_y_R = map_end_R[1]
 
-		# Walk straight up with a step size of one pixel-ish (should I do half a pixel?)
-		y = pos_R[1]
-		collided = False
-		while y >= map_end_y:
-			# Get current coord in original coordinates and floor to bottom left
-			curr_pos_R = np.array([pos_R[0], y])
-			curr_pos_locked = np.floor(R.T @ curr_pos_R)
-			matches = np.where(np.logical_and(
-				curr_pos_locked[0] == self.boundary_points[:,0],
-				curr_pos_locked[1] == self.boundary_points[:,1]
-			))
-			# Check if boundary points contains that point
-			if len(matches[0]) > 0:
-				collided = True
-				break
-			y -= 0.5
+		# # Walk straight up with a step size of one pixel-ish (should I do half a pixel?)
+		# y = pos_R[1]
+		# collided = False
+		# while y >= map_end_y:
+		# 	# Get current coord in original coordinates and floor to bottom left
+		# 	curr_pos_R = np.array([pos_R[0], y])
+		# 	curr_pos_locked = np.floor(R.T @ curr_pos_R)
+		# 	matches = np.where(np.logical_and(
+		# 		curr_pos_locked[0] == self.boundary_points[:,0],
+		# 		curr_pos_locked[1] == self.boundary_points[:,1]
+		# 	))
+		# 	# Check if boundary points contains that point
+		# 	if len(matches[0]) > 0:
+		# 		collided = True
+		# 		break
+		# 	y -= 0.5
 
-		# Get ray length from stopping point
-		y = max(y, map_end_y)
-		raylength = y - pos_R[1] if collided else float('inf')
-		return raylength
+		# # Get ray length from stopping point
+		# y = max(y, map_end_y)
+		# raylength = y - pos_R[1] if collided else float('inf')
+		# return raylength
+		
+		# Create grid-aligned list of pixels over which to iterate
+		ys_R = np.arange(pos_R[1], map_end_y_R, 0.5)
+		steps_R = np.zeros((ys_R.shape[0], 2))
+		steps_R[:,0] = pos_R[0]
+		steps_R[:,1] = ys_R
+		steps_locked = np.floor((R.T @ steps_R.T).T).astype(int)
+		
+		# Find the nearest boundary pixel
+		pixels_r = self.img[steps_locked[:,0], steps_locked[:,1], 0]
+		pixels_g = self.img[steps_locked[:,0], steps_locked[:,1], 1]
+		pixels_b = self.img[steps_locked[:,0], steps_locked[:,1], 2]
+		boundary_point_idxs = np.where(np.logical_and(pixels_r == 0, np.logical_and(pixels_g == 0, pixels_b == 0)))[0]
+
+		# If none was found, there is no bound on length
+		if len(boundary_point_idxs) == 0:
+			return float('inf')
+
+		# Otherwise, find the distance between the car and this pixel
+		boundary_point_R = steps_R[boundary_point_idxs[0]]
+		return pos_R[1] - boundary_point_R[1]
 
 	def lidar(self, car, n_rays):
 		x, y, angle, _ = car.state
