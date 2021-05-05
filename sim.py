@@ -124,24 +124,31 @@ class Sim(gym.Env):
             LIDAR_MIN, LIDAR_MAX
         )
 
-        self.OBS_LEN_PER_CAR = LIDAR_N + 4 + min(N_NEARBY_CARS, self.num_cars-1)*6
+        self.actual_n_nearby_cars = min(N_NEARBY_CARS, self.num_cars-1)
+
+        self.NEIGHBOR_OBS_LEN = 6
+        self.LOCAL_OBS_LEN = LIDAR_N + 4
+        self.OBS_LEN_PER_CAR = self.actual_n_nearby_cars*self.NEIGHBOR_OBS_LEN + self.LOCAL_OBS_LEN
         
         # I'm not sure what these are. The values are guesses
-        self.dim_local_o = N_NEARBY_CARS
+        self.dim_local_o = self.LOCAL_OBS_LEN
         self.dim_flat_o = self.dim_local_o
-        self.dim_rec_o = (self.num_cars, self.OBS_LEN_PER_CAR)
-        self.dim_mean_embs = self.dim_rec_o
-
+        # self.dim_local_o = N_NEARBY_CARS
+        # self.dim_flat_o = self.dim_local_o
+        self.dim_rec_o = (self.actual_n_nearby_cars, self.NEIGHBOR_OBS_LEN)
+        self.dim_mean_embs = (self.actual_n_nearby_cars, self.NEIGHBOR_OBS_LEN)
+        self.dim_o = np.prod(self.dim_rec_o) + self.dim_local_o
+ 
         self.reset()
 
     @property
     def state_space(self):
-        return spaces.Box(low=-max(self.map.img_shape), high=max(self.map.img_shape), shape=(len(self.agents) * self.OBS_LEN_PER_CAR,), dtype=np.float32)
+        return spaces.Box(low=-max(self.map.img_shape), high=max(self.map.img_shape), shape=(self.dim_o,), dtype=np.float32)
 
     @property
     def observation_space(self):
         # Observation space of one car
-        ob_space = spaces.Box(low=-max(self.map.img_shape), high=max(self.map.img_shape), shape=(self.OBS_LEN_PER_CAR,), dtype=np.float32)
+        ob_space = spaces.Box(low=-max(self.map.img_shape), high=max(self.map.img_shape), shape=(self.dim_o,), dtype=np.float32)
         ob_space.dim_local_o = self.dim_local_o
         ob_space.dim_flat_o = self.dim_flat_o
         ob_space.dim_rec_o = self.dim_rec_o
@@ -249,15 +256,17 @@ class Sim(gym.Env):
             neighbors = self.nearby_cars(car, N_NEARBY_CARS)
             
             curr_obs = []
-            curr_obs.extend(raycast)
-            curr_obs.extend(car.state)
+            # Neighbor stuff first
             for neighbor in neighbors:
                 n_x, n_y, n_theta, n_phi = neighbor.state
                 n_dx, n_dy, n_dtheta, n_dphi = neighbor.velocity
                 curr_obs.extend([n_x, n_y, n_theta, n_dx, n_dy, n_dtheta])
+            # Then stuff about the local observation
+            curr_obs.extend(raycast)
+            curr_obs.extend(car.state)
 
-            obs.extend(curr_obs)
-        return obs
+            obs.append(curr_obs)
+        return np.array(obs)
 
     def step(self, actions):
         '''actions: (v, dphi)'''
@@ -300,7 +309,7 @@ class Sim(gym.Env):
         # Check number of cars remaining
         done = len(self.agents) == 0
 
-        return np.array(obs), reward, done, info
+        return obs, reward, done, info
 
     def close(self):
         if self.save_video: # TEMP: Eventually move this into map probably
