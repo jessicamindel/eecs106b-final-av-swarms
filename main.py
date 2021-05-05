@@ -12,11 +12,14 @@ if __name__ == '__main__':
 	parser.add_argument('--angle-max', type=float, required=False)
 	parser.add_argument('--save-video', action='store_true', default=False, required=False)
 	parser.add_argument('--timestep', type=float, required=False, default=0.1)
+	parser.add_argument('--nogui', action='store_true', default=False, required=False)
 
 	args = parser.parse_args()
 	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or 0, args.angle_max or 2*np.pi, save_video=args.save_video, timestep=args.timestep)
-	s.render()
-	plt.pause(0.01)
+	
+	if not args.nogui:
+		s.render()
+		plt.pause(0.01)
 
 	# ACTIONS = [(200, 0)] #, (0, np.pi/6), (50, np.pi/12)]
 	ACTIONS = [(10, 0.01)]
@@ -25,10 +28,13 @@ if __name__ == '__main__':
 
 	for i in range(80):
 		s.step(car_actions)
-		s.render()
-		plt.pause(0.01)
+		if not args.nogui:
+			s.render()
+			plt.pause(0.01)
 
-	plt.pause(10)
+	if not args.nogui:
+		plt.pause(10)
+	
 	s.close()
 
 	# FIXME: Some problems right off the bat:
