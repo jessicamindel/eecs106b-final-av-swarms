@@ -127,11 +127,11 @@ class Sim:
         ret = False
         for i in range(len(self.cars)):
             for j in range(i, len(self.cars)):
-                for seg1 in cars[i].get_segments():
-                    for seg2 in cars[j].get_segments():
-                        if intersect_segments(seg1, seg2):
-                            cars[i].collided = True
-                            cars[j].collided = True
+                for seg1 in self.cars[i].get_segments():
+                    for seg2 in self.cars[j].get_segments():
+                        if intersect_segments(seg1, seg2): # FIXME: This likely also doesn't work; see below.
+                            self.cars[i].collided = True
+                            self.cars[j].collided = True
                             ret = True
         return ret
 
@@ -140,8 +140,8 @@ class Sim:
         car = Car((x, y, theta, 0), (0, 0))
         for i in range(len(self.cars)):
             for seg1 in car.get_segments():
-                for seg2 in cars[i].get_segments():
-                    if intersect_segments(seg1, seg2):
+                for seg2 in self.cars[i].get_segments():
+                    if intersect_segments(seg1, seg2): # FIXME: This function call doesn't work. Not enough args.
                         return True
         return False
 
