@@ -8,12 +8,14 @@ from utils import *
 rng = np.random.default_rng(42)
 
 class Map:
-	def __init__(self, img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi):
+	def __init__(self, img_path, path_reversal_probability=0, angle_min=0, angle_max=2*np.pi, lidar_angle_min=-np.pi, lidar_angle_max=np.pi):
 		self.img_path = img_path
 		self.img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
 		self.path_reversal_probability = path_reversal_probability
 		self.angle_min = angle_min
 		self.angle_max = angle_max
+		self.lidar_angle_min = lidar_angle_min
+		self.lidar_angle_max = lidar_angle_max
 
 		self.img_shape = self.img.shape[:2]
 
@@ -131,34 +133,49 @@ class Map:
 
 	def lidar(self, car, n_rays):
 		x, y, angle, _ = car.state
-		ret = [self.raycast(x, y, t) for t in np.linspace(self.angle_min + angle, self.angle_max + angle, n_rays, endpoint=True)]
+		ret = [self.raycast(x, y, t) for t in np.linspace(self.lidar_angle_min + angle, self.lidar_angle_max + angle, n_rays, endpoint=True)]
 		return ret
+
+	def draw_car(self, ax, x, y, angle, center='point', text=None):
+		FRONT_RATIO = 0.2
+		# Find center point
+		pos = np.array([x, y])
+		R = rot_matrix(-angle)
+		pos_R = R @ pos
+		top_right = R.T @ (pos_R - np.array([self.car_width / 2, self.car_height / 2]))
+		top_middle_short = R.T @ (pos_R - np.array([0, self.car_height / 4]))
+		ax.add_patch(Rectangle(
+			top_right,
+			self.car_width,
+			self.car_height,
+			angle=angle*180/np.pi,
+			edgecolor='black',
+			facecolor='white',
+			fill=True,
+			lw=2
+		))
+		ax.add_patch(Rectangle(
+			top_right,
+			self.car_width,
+			self.car_height*FRONT_RATIO,
+			angle=angle*180/np.pi,
+			edgecolor='green',
+			facecolor='white',
+			fill=True,
+			lw=3
+		))
+		if center == 'point':
+			plt.plot(x, y, 'ko', markersize=4)
+		elif center == 'vector': # FIXME: Doesn't work :(
+			plt.plot(x, y, top_middle_short[0] - x, top_middle_short[1] - y)
+		elif center == 'text' and text is not None:
+			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
 	def render(self, cars):
 		self.ax.clear()
 		self.ax.imshow(self.img)
-		for car in cars:
+		for i, car in enumerate(cars):
 			x, y, angle, _ = car.state
-			FRONT_RATIO = 0.2
-			self.ax.add_patch(Rectangle(
-				(x, y),
-				self.car_width,
-				self.car_height,
-				angle=angle*180/np.pi,
-				edgecolor='black',
-				facecolor='white',
-				fill=True,
-				lw=2
-			))
-			self.ax.add_patch(Rectangle(
-                (x, y),
-                self.car_width,
-                self.car_height*FRONT_RATIO,
-                angle=angle*180/np.pi,
-                edgecolor='green',
-                facecolor='white',
-                fill=True,
-                lw=2
-            ))
+			self.draw_car(self.ax, x, y, angle, center='text', text=str(i))
 		self.ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
