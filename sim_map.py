@@ -9,12 +9,19 @@ from utils import *
 rng = np.random.default_rng(42)
 
 class Map:
-	def __init__(self, img_path, path_reversal_probability=0, angle_min=0, angle_max=2*np.pi, lidar_angle_min=-np.pi, lidar_angle_max=np.pi):
+	def __init__(self,
+		img_path, path_reversal_probability=0.0,
+		angle_min=0.0, angle_max=2*np.pi,
+		angle_mode='auto', angle_noise=0.0,
+		lidar_angle_min=-np.pi, lidar_angle_max=np.pi,
+	):
 		self.img_path = img_path
 		self.img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
 		self.path_reversal_probability = path_reversal_probability
 		self.angle_min = angle_min
 		self.angle_max = angle_max
+		self.angle_mode = angle_mode
+		self.angle_noise = angle_noise
 		self.lidar_angle_min = lidar_angle_min
 		self.lidar_angle_max = lidar_angle_max
 
@@ -59,7 +66,7 @@ class Map:
 	def get_car_size(self):
 		return self.car_width, self.car_height
 
-	def choose_path(self, padding=0, angle_mode='auto'):
+	def choose_path(self, padding=0):
 		'''Finds a starting and ending point for a car. Returns each as (row, col) indices.'''
 		# Randomly select a start point
 		start_idx = rng.integers(self.start_points.shape[0])
@@ -72,20 +79,20 @@ class Map:
 			end_temp = end
 			end = start
 			start = end_temp
-		if angle_mode[:4] == 'auto':
+		if self.angle_mode[:4] == 'auto':
 			# Find the nearest point along the direction line
 			nearest_dir_idx = np.argmin(np.linalg.norm(self.start_dir_points - start, axis=1))
 			dir_vec = start - self.start_dir_points[nearest_dir_idx]
 			# Determine the angle using the resulting vector
 			start_angle = np.mod(-np.arctan2(*dir_vec), 2*np.pi)
-			if angle_mode == 'auto_noise':
-				# TODO: Use Gaussian noise with parameter for max amount of noise centered at 0, stddev = that parameter
-				pass
-		elif angle_mode == 'random':
+			if self.angle_mode == 'auto_noise':
+				# FIXME: 0.6 may be too small of a variance, but I tried to avoid sizes that often yielded samples > 1.
+				start_angle += self.angle_noise * rng.normal(0, 0.6)
+		elif self.angle_mode == 'random':
 			# Randomly choose an angle
 			start_angle = rng.uniform(low=self.angle_min, high=self.angle_max)
 		else:
-			raise ValueError(f'In Map.choose_path, angle_mode must be either \'auto\', \'auto_noise\', or \'random\'; {angle_mode} is not a valid mode.')
+			raise ValueError(f'In Map.choose_path, angle_mode must be either \'auto\', \'auto_noise\', or \'random\'; {self.angle_mode} is not a valid mode.')
 		# Ensure no collisions
 		if self.car_has_boundary_collision(start, start_angle, padding):
 			return self.choose_path(padding)

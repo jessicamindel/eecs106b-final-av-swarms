@@ -100,14 +100,24 @@ class Car:
         self.velocity = np.zeros(4)
 
 class Sim(gym.Env):
-    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True, timestep=0.1, spawn_padding=1, max_episode_steps=80):
+    def __init__(self,
+        num_cars, map_img_path, path_reversal_probability=0,
+        angle_min=-np.pi, angle_max=np.pi, spawn_padding=1,
+        angle_mode='auto', angle_noise=0.0,
+        save_video=True, timestep=0.1, max_episode_steps=80
+    ):
         self.save_video = save_video
         self.timestep = timestep
         self.spawn_padding = spawn_padding
         self.max_episode_steps = max_episode_steps
         self.num_cars = num_cars
 
-        self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max, LIDAR_MIN, LIDAR_MAX)
+        self.map = Map(
+            map_img_path, path_reversal_probability,
+            angle_min, angle_max,
+            angle_mode, angle_noise,
+            LIDAR_MIN, LIDAR_MAX
+        )
 
         self.reset()
 

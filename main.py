@@ -13,6 +13,8 @@ if __name__ == '__main__':
 	parser.add_argument('--save-video', action='store_true', default=False, required=False)
 	parser.add_argument('--timestep', type=float, required=False, default=0.1)
 	parser.add_argument('--nogui', action='store_true', default=False, required=False)
+	parser.add_argument('--angle-mode', choices=['auto', 'auto_noise', 'random'], default='auto', required=False)
+	parser.add_argument('--angle-noise', type=float, default=0.0, required=False)
 
 	args = parser.parse_args()
 
@@ -23,7 +25,12 @@ if __name__ == '__main__':
 		fig.canvas.set_window_title('AV Swarm Simulator')
 		plt.show()
 
-	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or 0, args.angle_max or 2*np.pi, save_video=args.save_video, timestep=args.timestep)
+	s = Sim(
+		args.num_cars, args.map_path, args.path_reversal_prob or 0,
+		args.angle_min or 0, args.angle_max or 2*np.pi,
+		angle_mode=args.angle_mode, angle_noise=args.angle_noise,
+		save_video=args.save_video, timestep=args.timestep
+	)
 	
 	if not args.nogui:
 		s.render(ax=ax)
