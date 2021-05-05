@@ -166,11 +166,13 @@ class ManualCar(Car):
             self.v_curr += V_MANUAL_INCREMENT
         if self.pressed_keys[self.keys.v.down]:
             self.v_curr -= V_MANUAL_INCREMENT
+        self.v_curr = min(max(0, self.v_curr), V_MAX)
         # Increase and decrease angular velocity
         if self.pressed_keys[self.keys.dphi.up]:
             self.dphi_curr += DPHI_MANUAL_INCREMENT
         if self.pressed_keys[self.keys.dphi.down]:
             self.dphi_curr -= DPHI_MANUAL_INCREMENT
+        self.dphi_curr = min(max(0, self.dphi_curr), DPHI_MAX)
         
         # If no keys are pressed, no action should be taken
         v = 0.0
@@ -192,13 +194,17 @@ class ManualCar(Car):
         self.figure.canvas.mpl_disconnect(self.cid_keypress)
         self.figure.canvas.mpl_disconnect(self.cid_keyrelease)
 
+rng = np.random.default_rng(42)
+
 class RandomCar(Car):
     def __init__(self, start_state, goal_state, width, height):
         super().__init__(start_state, goal_state, width, height, is_rational=False)
 
     def step(self, timestep):
-        # TODO: Generate a random action within some bounds
-        return super().step(None, timestep)
+        # Generate a random action within input bounds
+        v = rng.uniform(V_MIN, V_MAX)
+        dphi = rng.uniform(DPHI_MIN, DPHI_MAX)
+        return super().step((v, dphi), timestep)
 
 class Sim(gym.Env):
     def __init__(self,
@@ -293,13 +299,21 @@ class Sim(gym.Env):
         )
         self.non_rl_cars.append(car)
 
+    def add_random_car(self, count=1):
+        for i in range(count):
+            while True:
+                start, end, start_angle = self.map.choose_path(padding=self.spawn_padding)
+                if not self.check_collisions_with(*start, start_angle, padding=self.spawn_padding):
+                    break
+            car = RandomCar((*start, start_angle, 0), end, self.map.car_width, self.map.car_height)
+            self.non_rl_cars.append(car)
+
     def remove_car(self, index, non_rl=False):
         if non_rl:
             del self.non_rl_cars[index]
         else:
             del self.agents[index]
 
-    def raycast(self, x, y, angle):
     def raycast(self, x, y, angle, exclude = None):
         best = float('inf')
         for car in itertools.chain(self.agents, self.non_rl_cars):
