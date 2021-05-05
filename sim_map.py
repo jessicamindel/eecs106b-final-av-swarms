@@ -48,12 +48,6 @@ class Map:
 		self.car_width = np.max(car_size_points[1]) - np.min(car_size_points[1]) + 1
 		self.car_height = np.max(car_size_points[0]) - np.min(car_size_points[0]) + 1
 
-		# Create window for rendering
-		plt.ion()
-		self.fig, self.ax = plt.subplots(figsize=(8,8))
-		self.fig.canvas.set_window_title('AV Swarm Simulator')
-		plt.show()
-
 	def get_car_size(self):
 		return self.car_width, self.car_height
 
@@ -174,13 +168,13 @@ class Map:
 		elif center == 'text' and text is not None:
 			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
-	def render(self, cars, save_frame=True):
-		self.ax.clear()
-		self.ax.imshow(self.img)
+	def render(self, cars, ax, save_frame=True):
+		ax.clear()
+		ax.imshow(self.img)
 		for i, car in enumerate(cars):
 			x, y, angle, _ = car.state
-			self.draw_car(self.ax, x, y, angle, center='text', text=str(i))
-		self.ax.axis('off')
+			self.draw_car(ax, x, y, angle, center='text', text=str(i))
+		ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 		if save_frame: matplotrecorder.save_frame()
 

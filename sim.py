@@ -3,19 +3,22 @@ from utils import *
 from sim_map import Map
 import matplotlib.pyplot as plt
 
+import gym
+from gym import spaces
+
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
 
 PHI_MIN = -np.pi/2
 PHI_MAX = np.pi/2 
 
-V_MIN = -5
-V_MAX = 5
+V_MIN = -100
+V_MAX = 100
 
 DPHI_MIN = -5
 DPHI_MAX = 5
 
-TIMESTEP = 0.01
+TIMESTEP = 0.05
 
 CAR_L = 5
 CAR_LEN = 6
@@ -90,20 +93,52 @@ class Car:
     def reached_goal(self, threshold=0.5):
         return self.distance_to_goal() <= threshold
 
-class Sim:
-    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True, timestep=0.1):
+    def collide(self):
+        # Sets collided to true and stops the car and stuff
+        self.collided = True
+        self.velocity = np.zeros(4)
+
+class Sim(gym.Env):
+    def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi, save_video=True, timestep=0.1, max_episode_steps=80):
         self.save_video = save_video
         self.timestep = timestep
+        self.max_episode_steps = max_episode_steps
+        self.num_cars = num_cars
         self.cars = []
         self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max, LIDAR_MIN, LIDAR_MAX)
+
+        self.reset()
+
+    # TODO
+    # @property
+    # def state_space(self):
+    #     obs_len_per_car =
+    #     return spaces.Box(low=-4, high=max(self.map.img_shape), shape=(len(self.cars) * 3,), dtype=np.float32)
+
+    # @property
+    # def observation_space(self):
+    #     return self.cars[0].observation_space
+
+    # @property
+    # def action_space(self):
+    #     return self.cars[0].action_space
+
+    @property
+    def is_terminal(self):
+        return len(self.cars) == 0 or self.time >= self.max_episode_steps
+
+    def reset(self):
+        self.time = 0
         i = 0
-        while i < num_cars:
+        while i < self.num_cars:
             # TODO: Possibly add the ability to add cars mid-simulation.
             start, end, start_angle = self.map.choose_path()
             if not self.check_collisions_with(*start, start_angle):
                 i += 1
                 self.spawn_car(*start, start_angle, *end)
-            else: print(i, 'collided')
+            # else: print(i, 'collided')
+
+        return self.get_obs()
 
     def spawn_car(self, x, y, theta, x_goal, y_goal):
         car = Car((x, y, theta, 0), (x_goal, y_goal), self.map.car_width, self.map.car_height)
@@ -140,15 +175,23 @@ class Sim:
         return ret[:num_cars]
 
     def check_collisions(self):
-        count = 0
+        # Set car to collision mode
         for i in range(len(self.cars)):
             for j in range(i+1, len(self.cars)):
-                for seg1 in self.cars[i].get_segments():
-                    for seg2 in self.cars[j].get_segments():
-                        if intersect_segments(seg1, seg2):
-                            self.cars[i].collided = True
-                            self.cars[j].collided = True
-                            count += 1
+                if self.cars[i].collided and self.cars[j].collided:
+                    pass
+                else:
+                    collided = False
+                    for seg1 in self.cars[i].get_segments():
+                        for seg2 in self.cars[j].get_segments():
+                            if intersect_segments(seg1, seg2):
+                                self.cars[i].collide()
+                                self.cars[j].collide()
+                                collided = True
+                                break
+                        if collided: break
+        # Count number of cars caught in collision
+        count = sum([car.collided for car in self.cars])
         return count
 
     def check_collisions_with(self, x, y, theta):
@@ -161,38 +204,12 @@ class Sim:
                         return True
         return False
 
-    def render(self):
-        self.map.render(self.cars, save_frame=self.save_video)
+    def render(self, ax=None):
+        assert ax is not None
+        self.map.render(self.cars, ax, save_frame=self.save_video)
 
-    def step(self, actions):
-        '''actions: (v, dphi)'''
-        obs, reward, done, info = [], 0, False, {}
-
-        to_remove = []
-        for i, (car, action) in enumerate(zip(self.cars, actions)):
-            x, y, theta, phi = car.state
-            v, dphi = action
-            car.step(action, self.timestep)
-            # Reward closeness to goal
-            reward += min(car.distance_to_goal(), 3)
-            # Penalize map collisions
-            if self.map.car_has_boundary_collision(np.array((x, y)), theta):
-                car.collided = True
-                reward -= 3
-            # Penalize large rotational velocity
-            if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
-                # FIXME: Tweak values and also function shape (right now it's a shrug)
-                reward -= lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
-            # Once car reaches goal, prepare to remove from simulation
-            if car.reached_goal():
-                to_remove.insert(0, i)
-        
-        # Penalize collisions between cars
-        num_car_collisions = self.check_collisions()
-        reward -= num_car_collisions * 3
-
-        # TODO: Maybe penalize time
-
+    def get_obs(self):
+        obs = []
         # Get observation (LIDAR, current velocity and pos, vel and pos of nearby cars)
         for car in self.cars:
             car_raycast = self.lidar(car)
@@ -208,7 +225,42 @@ class Sim:
                 n_dx, n_dy, n_dtheta, n_dphi = neighbor.velocity
                 curr_obs.extend([n_x, n_y, n_theta, n_dx, n_dy, n_dtheta])
 
-            obs.append(curr_obs)
+            obs.extend(curr_obs)
+        return obs
+
+    def step(self, actions):
+        '''actions: (v, dphi)'''
+        obs, reward, done, info = [], 0, False, {}
+
+        self.time += 1
+
+        to_remove = []
+        for i, (car, action) in enumerate(zip(self.cars, actions)):
+            x, y, theta, phi = car.state
+            v, dphi = action
+            car.step(action, self.timestep)
+            # Reward closeness to goal
+            # The *30 and min(...,3) basically means to try to get within 10 pixels of the target
+            reward += min(1/car.distance_to_goal()*30, 3)
+            # Penalize map collisions
+            if car.collided or self.map.car_has_boundary_collision(np.array((x, y)), theta):
+                car.collide()
+                reward -= 3
+            # Penalize large rotational velocity
+            if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
+                # FIXME: Tweak values and also function shape (right now it's a shrug)
+                reward -= lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            # Once car reaches goal, prepare to remove from simulation
+            if car.reached_goal():
+                to_remove.insert(0, i)
+        
+        # Penalize collisions between cars
+        num_car_collisions = self.check_collisions()
+        reward -= num_car_collisions * 3
+
+        # TODO: Maybe penalize time
+
+        obs = self.get_obs()
 
         # Remove finished cars
         for i in to_remove:
@@ -217,7 +269,7 @@ class Sim:
         # Check number of cars remaining
         done = len(self.cars) == 0
 
-        return obs, reward, done, info
+        return np.array(obs), reward, done, info
 
     def close(self):
         if self.save_video: # TEMP: Eventually move this into map probably
