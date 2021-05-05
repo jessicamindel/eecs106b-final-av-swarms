@@ -68,7 +68,7 @@ class Car:
             v = V_MAX
         if dphi < DPHI_MIN:
             dphi = DPHI_MIN
-        if dphi > DPI_MAX:
+        if dphi > DPHI_MAX:
             dphi = DPHI_MAX
 
         mat1 = np.array([np.cos(self.state[2]), np.sin(self.state[2]), np.tan(self.state[3]) / CAR_L, 0])
@@ -84,10 +84,12 @@ class Sim:
     def __init__(self, num_cars, map_img_path, path_reversal_probability=0, angle_min=-np.pi, angle_max=np.pi):
         self.cars = []
         self.map = Map(map_img_path, path_reversal_probability, angle_min, angle_max, LIDAR_MIN, LIDAR_MAX)
-        for i in range(num_cars):
+        i = 0
+        while i < num_cars:
             start, end, start_angle = self.map.choose_path()
-            # TODO: Check collisions with all other cars; if so, throw it out
-            self.spawn_car(*start, start_angle, *end)
+            if not self.check_collisions_with(*start, start_angle):
+                i += 1
+                self.spawn_car(*start, start_angle, *end)
 
     def spawn_car(self, x, y, theta, x_goal, y_goal):
         car = Car((x, y, theta, 0), (x_goal, y_goal))
@@ -131,6 +133,16 @@ class Sim:
                             cars[i].collided = True
                             cars[j].collided = True
                             ret = True
+        return ret
+
+    def check_collisions_with(self, x, y, theta):
+        '''Checks for collisions with a car not yet added to the simulation. Has no side effects.'''
+        car = Car((x, y, theta, 0), (0, 0))
+        for i in range(len(self.cars)):
+            for seg1 in car.get_segments():
+                for seg2 in cars[i].get_segments():
+                    if intersect_segments(seg1, seg2):
+                        return True
         return False
 
     def render(self):
