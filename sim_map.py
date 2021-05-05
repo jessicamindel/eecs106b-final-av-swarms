@@ -141,6 +141,9 @@ class Map:
 		steps_R[:,0] = pos_R[0]
 		steps_R[:,1] = ys_R
 		steps_locked = np.floor((R.T @ steps_R.T).T).astype(int)
+
+		steps_locked[:, 1] = np.clip(steps_locked[:, 1], 0, self.img.shape[0]-1)
+		steps_locked[:, 0] = np.clip(steps_locked[:, 0], 0, self.img.shape[1]-1)
 		
 		# Find the nearest boundary pixel
 		pixels_r = self.img[steps_locked[:,1], steps_locked[:,0], 0]

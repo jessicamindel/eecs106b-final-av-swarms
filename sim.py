@@ -219,6 +219,8 @@ class Sim(gym.Env):
         angle_mode='auto', angle_noise=0.0,
         save_video=False, timestep=0.1, max_episode_steps=80
     ):
+        if angle_noise != 0:
+            assert angle_mode == "auto_noise"
         self.save_video = save_video
         self.timestep = timestep
         self.spawn_padding = spawn_padding
@@ -427,6 +429,7 @@ class Sim(gym.Env):
 
     def step(self, actions):
         '''actions: (v, dphi)'''
+        actions = np.array(actions)
         actions[:,0] = actions[:,0] * self.v_action_scale
 
         obs, reward, done, info = [], 0, False, {}
