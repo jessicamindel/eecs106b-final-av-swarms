@@ -63,6 +63,8 @@ class Map:
 		self.car_width = np.max(car_size_points[1]) - np.min(car_size_points[1]) + 1
 		self.car_height = np.max(car_size_points[0]) - np.min(car_size_points[0]) + 1
 
+		self.user_text_point = (min(car_size_points[1]), min(car_size_points[0]))
+
 	def get_car_size(self):
 		return self.car_width, self.car_height
 
@@ -182,8 +184,8 @@ class Map:
 		ret = [self.raycast(x, y, t) for t in np.linspace(self.lidar_angle_min + angle, self.lidar_angle_max + angle, n_rays, endpoint=True)]
 		return ret
 
-	def draw_car(self, ax, x, y, angle, center='point', text=None):
-		FRONT_RATIO = 0.2
+	def draw_car(self, ax, x, y, angle, center='point', text=None, front_color='green'):
+		FRONT_RATIO = 0.1
 		# Find center point
 		pos = np.array([x, y])
 		R = rot_matrix(-angle)
@@ -205,10 +207,10 @@ class Map:
 			self.car_width,
 			self.car_height*FRONT_RATIO,
 			angle=angle*180/np.pi,
-			edgecolor='green',
-			facecolor='white',
+			edgecolor=front_color,
+			facecolor=front_color,
 			fill=True,
-			lw=3
+			lw=2
 		))
 		if center == 'point':
 			plt.plot(x, y, 'ko', markersize=4)
@@ -217,12 +219,25 @@ class Map:
 		elif center == 'text' and text is not None:
 			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
-	def render(self, cars, ax, save_frame=True):
+	def render(self, cars, non_rl_cars, ax, save_frame=True):
 		ax.clear()
 		ax.imshow(self.img)
 		for i, car in enumerate(cars):
 			x, y, angle, _ = car.state
 			self.draw_car(ax, x, y, angle, center='text', text=str(i))
+		for i, car in enumerate(non_rl_cars):
+			x, y, angle, _ = car.state
+			classname = type(car).__name__
+			if classname == 'ManualCar':
+				self.draw_car(ax, x, y, angle, center='text', text=f'M{i}', front_color='blue')
+				# Draw goal point
+				plt.plot(*car.goal_state, 'bo', markersize=10)
+				plt.text(*car.goal_state, f'M{i}', c='white', fontsize=6, ha='center', va='center')
+				# TODO: Draw velocity information
+				plt.text(*self.user_text_point, f'Step size:\nv: {car.v_curr}\ndphi: {car.dphi_curr}', fontsize=6, ha='left', va='top')
+			if classname == 'RandomCar':
+				self.draw_car(ax, x, y, angle, center='text', text=f'R{i}', front_color='red')
+
 		ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 		if save_frame: matplotrecorder.save_frame()
