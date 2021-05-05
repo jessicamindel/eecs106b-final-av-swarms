@@ -185,9 +185,11 @@ class Sim(gym.Env):
     def remove_car(self, index):
         del self.agents[index]
 
-    def raycast(self, x, y, angle):
+    def raycast(self, x, y, angle, exclude = None):
         best = float('inf')
         for car in self.agents:
+            if car is exclude:
+                continue
             for segment in car.get_segments():
                 d, _ = intersect_ray_segment([x,y], angle, segment[0], segment[1])
                 if d != -1 and d < best:
@@ -196,9 +198,8 @@ class Sim(gym.Env):
 
     def lidar(self, car):
         x, y, angle, _ = car.state
-        # ret = [self.raycast(x, y, t) for t in range(angle + LIDAR_MIN, angle + LIDAR_MAX, LIDAR_N-1)]
-        # ret.append(self.raycast(x, y, angle + LIDAR_MAX))
-        ret = [self.raycast(x, y, t) for t in np.linspace(LIDAR_MIN + angle, LIDAR_MAX + angle, LIDAR_N, endpoint=True)]
+        angle -= np.pi/2
+        ret = [self.raycast(x, y, t, car) for t in np.linspace(LIDAR_MIN + angle, LIDAR_MAX + angle, LIDAR_N, endpoint=True)]
         return ret
 
     #returns a list of the other cars sorted by distance
