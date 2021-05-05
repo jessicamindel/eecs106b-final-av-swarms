@@ -19,7 +19,7 @@ if __name__ == '__main__':
 	plt.pause(0.01)
 
 	# ACTIONS = [(200, 0)] #, (0, np.pi/6), (50, np.pi/12)]
-	ACTIONS = [(10, np.pi/6)]
+	ACTIONS = [(10, 0.01)]
 	rng = np.random.default_rng(42)
 	car_actions = [rng.choice(ACTIONS) for _ in range(args.num_cars)]
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 		s.render()
 		plt.pause(0.01)
 
-	plt.pause(15)
+	plt.pause(10)
 	s.close()
 
 	# FIXME: Some problems right off the bat:

@@ -25,8 +25,8 @@ LIDAR_MIN = -np.pi/2
 LIDAR_MAX = np.pi/2
 LIDAR_N = 10
 
-DPHI_PENALTY_THRESHOLD = np.pi/12 # FIXME: May be too small or large?
-DPHI_PENALTY_MAX = np.pi/4 # FIXME: May be too small or large?
+DPHI_PENALTY_THRESHOLD = np.pi/200 # FIXME: May be too small or large?
+DPHI_PENALTY_MAX = np.pi/40 # FIXME: May be too small or large?
 
 N_NEARBY_CARS = 3
 
@@ -69,7 +69,7 @@ class Car:
         dphi = min(max(dphi, DPHI_MIN), DPHI_MAX)
 
         # FIXME: This is also janky oh man
-        mat1 = np.array([np.cos(np.pi - self.state[2]), np.sin(np.pi - self.state[2]), np.tan(np.pi - self.state[3]) / CAR_L, 0])
+        mat1 = np.array([np.cos(np.pi - self.state[2]), np.sin(np.pi - self.state[2]), -np.tan(np.pi - self.state[3]) / CAR_L, 0])
         mat2 = np.array([0,0,0,1])
         self.velocity = v * mat1 + dphi * mat2
         # FIXME: This is so janky
@@ -80,9 +80,7 @@ class Car:
     def step(self, action, timestep):
         if not self.collided:
             self.control(*action)
-            print('before', self.state, end='\t')
             self.state += timestep * self.velocity
-            print('after', self.state)
 
     def distance_to_goal(self):
         x, y, _, _ = self.state
