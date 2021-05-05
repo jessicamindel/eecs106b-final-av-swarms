@@ -114,7 +114,6 @@ class Map:
 		# FIXME: On second thought, will this miss things that are in the box of a
 		# boundary pixel but aren't exactly on that pixel's corner?
 
-	# FIXME: It's possible I have the y direction wrong. This will need a revisit.
 	def raycast(self, x, y, angle):
 		# Rotate image into these coordinates for purely horizontal ray traversal
 		R = rot_matrix(-angle)
@@ -135,23 +134,6 @@ class Map:
 			if t1 != -1:
 				break
 		map_end_y_R = map_end_R[1]
-
-		self.render(self.cars, self.non_rl_cars, self.ax, False)
-
-		plt.plot(*map_end_R, 'yo')
-		plt.plot(*(R.T @ map_end_R), 'yo')
-
-		plt.plot((width, 0), (0, 0), c='red')
-		plt.plot((0, 0), (0, height), c='green')
-		plt.plot((0, width), (height, height), c='cyan')
-		plt.plot((width, width), (height, 0), c='magenta')
-
-		plt.plot((tr_R[0], tl_R[0]), (tr_R[1], tl_R[1]), c='red')
-		plt.plot((tl_R[0], bl_R[0]), (tl_R[1], bl_R[1]), c='green')
-		plt.plot((bl_R[0], br_R[0]), (bl_R[1], br_R[1]), c='cyan')
-		plt.plot((br_R[0], tr_R[0]), (br_R[1], tr_R[1]), c='magenta')
-
-		plt.pause(0.01)
 		
 		# Create grid-aligned list of pixels over which to iterate
 		ys_R = np.arange(pos_R[1], map_end_y_R, np.sign(map_end_y_R - pos_R[1]) * 0.5)
@@ -159,9 +141,6 @@ class Map:
 		steps_R[:,0] = pos_R[0]
 		steps_R[:,1] = ys_R
 		steps_locked = np.floor((R.T @ steps_R.T).T).astype(int)
-
-		plt.plot(steps_locked[:,0], steps_locked[:,1], 'b-')
-		plt.pause(0.01)
 		
 		# Find the nearest boundary pixel
 		pixels_r = self.img[steps_locked[:,1], steps_locked[:,0], 0]
@@ -175,10 +154,6 @@ class Map:
 
 		# Otherwise, find the distance between the car and this pixel
 		boundary_point_R = steps_R[boundary_point_idxs[0]]
-
-		plt.plot(*(R.T @ boundary_point_R), 'ro')
-		plt.pause(0.01)
-
 		return pos_R[1] - boundary_point_R[1]
 
 	def lidar(self, car, n_rays):
@@ -222,10 +197,6 @@ class Map:
 			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
 	def render(self, cars, non_rl_cars, ax, save_frame=True):
-		self.cars = cars
-		self.non_rl_cars = non_rl_cars
-		self.ax = ax # TEMP: MUST REMOVE
-
 		ax.clear()
 		ax.imshow(self.img)
 		for i, car in enumerate(cars):
