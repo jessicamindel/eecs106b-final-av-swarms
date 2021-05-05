@@ -3,6 +3,7 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import time
+import matplotrecorder
 from utils import *
 
 rng = np.random.default_rng(42)
@@ -173,7 +174,7 @@ class Map:
 		elif center == 'text' and text is not None:
 			plt.text(x, y, text, rotation=-angle*180/np.pi, fontsize=6, ha='center')
 
-	def render(self, cars):
+	def render(self, cars, save_frame=True):
 		self.ax.clear()
 		self.ax.imshow(self.img)
 		for i, car in enumerate(cars):
@@ -181,3 +182,7 @@ class Map:
 			self.draw_car(self.ax, x, y, angle, center='text', text=str(i))
 		self.ax.axis('off')
 		plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+		if save_frame: matplotrecorder.save_frame()
+
+	def close(self):
+		matplotrecorder.save_movie(f'img/av_swarm_{int(time.time())}.mp4', 0.1)

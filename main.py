@@ -16,6 +16,7 @@ if __name__ == '__main__':
 	s.render()
     # I put the pause here!
 	plt.pause(10)
+	s.close()
 
 	# FIXME: Some problems right off the bat:
 	# - I can't keep the plt window open without pausing it for a long period of time.
