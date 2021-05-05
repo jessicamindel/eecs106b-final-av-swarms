@@ -10,6 +10,12 @@ def rot_matrix(angle):
 	'''Returns a 2D counterclockwise rotation matrix.'''
 	return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
+def lerp(t, x0, x1):
+    return (1.0 - t) * x0 + t * x1
+
+def normalize_between(val, min_val, max_val):
+    return (max_val - val) / (max_val - min_val)
+
 def intersect_ray_segment(rayOrigin, angle, point1, point2):
     """
     >>> # Line segment

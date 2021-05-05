@@ -98,10 +98,10 @@ class Map:
 		
 		# Form boundaries of image so they can also be rotated
 		height, width = self.img_shape
-		bl_R = R @ np.array([0, 0])
-		br_R = R @ np.array([width, 0])
-		tl_R = R @ np.array([0, height])
-		tr_R = R @ np.array([width, height])
+		bl_R = R @ np.array([0, height])
+		br_R = R @ np.array([width, height])
+		tl_R = R @ np.array([0, 0])
+		tr_R = R @ np.array([width, 0])
 
 		# Find bounds of iteration and ray length for the only one it collides with
 		map_segments = [(bl_R, br_R), (br_R, tr_R), (tl_R, tr_R), (bl_R, tl_R)]
@@ -110,14 +110,14 @@ class Map:
 			t1, map_end = intersect_ray_segment(pos_R, 0, *seg)
 			if t1 != -1:
 				break
-		map_end_x = map_end[0]
+		map_end_y = map_end[1]
 
-		# Walk straight to the right with a step size of one pixel-ish (should I do half a pixel?)
-		x = pos_R[0]
+		# Walk straight up with a step size of one pixel-ish (should I do half a pixel?)
+		y = pos_R[1]
 		collided = False
-		while x <= map_end_x:
+		while y >= map_end_y:
 			# Get current coord in original coordinates and floor to bottom left
-			curr_pos_R = np.array([x, pos_R[1]])
+			curr_pos_R = np.array([pos_R[0], y])
 			curr_pos_locked = np.floor(R.T @ curr_pos_R)
 			matches = np.where(np.logical_and(
 				curr_pos_locked[0] == self.boundary_points[:,0],
@@ -127,11 +127,11 @@ class Map:
 			if len(matches[0]) > 0:
 				collided = True
 				break
-			x += 0.5
+			y -= 0.5
 
 		# Get ray length from stopping point
-		x = min(x, map_end_x)
-		raylength = x - pos_R[0] if collided else float('inf')
+		y = max(y, map_end_y)
+		raylength = y - pos_R[1] if collided else float('inf')
 		return raylength
 
 	def lidar(self, car, n_rays):

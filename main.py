@@ -15,7 +15,18 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	s = Sim(args.num_cars, args.map_path, args.path_reversal_prob or 0, args.angle_min or 0, args.angle_max or 2*np.pi, save_video=args.save_video)
 	s.render()
-	plt.pause(10)
+	plt.pause(0.01)
+
+	ACTIONS = [(10, 0), (0, np.pi/12), (5, np.pi/18)]
+	rng = np.random.default_rng(42)
+	car_actions = [rng.choice(ACTIONS) for _ in range(args.num_cars)]
+
+	for i in range(80):
+		s.step(car_actions)
+		s.render()
+		plt.pause(0.01)
+
+	plt.pause(15)
 	s.close()
 
 	# FIXME: Some problems right off the bat:
