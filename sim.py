@@ -428,11 +428,11 @@ class Sim(gym.Env):
             reward += (dtg - car.prev_dist_to_goal) / 5
         car.prev_dist_to_goal = dtg
         
-        ```
+        """
         # Reward closeness to goal
         # The *30 and min(...,3) basically means to try to get within 10 pixels of the target
         reward += min(1/car.distance_to_goal()*30, 3)
-        ```
+        """
         
         
         # Penalize map collisions
