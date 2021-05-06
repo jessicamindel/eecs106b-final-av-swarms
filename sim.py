@@ -11,14 +11,14 @@ from gym import spaces
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
 
-PHI_MIN = -np.pi/30
-PHI_MAX = np.pi/30
+PHI_MIN = -np.pi/2 * 0.6
+PHI_MAX = np.pi/30 * 0.6
 
 V_MIN = -100
 V_MAX = 100
 
-DPHI_MIN = -5
-DPHI_MAX = 5
+DPHI_MIN = -np.pi/30
+DPHI_MAX = np.pi/30
 
 V_MANUAL_INCREMENT = 5.0
 DPHI_MANUAL_INCREMENT = 0.001
@@ -94,6 +94,7 @@ class Car:
         if not self.collided:
             self.control(*action)
             self.state += timestep * self.velocity
+            self.state[3] = np.clip(self.state[3], PHI_MIN, PHI_MAX)
             return action
         return (0, 0)
 
@@ -271,7 +272,7 @@ class Sim(gym.Env):
     @property
     def action_space(self):
         # Actino space of one car
-        return spaces.Box(low=np.array([V_MIN/self.v_action_scale, PHI_MIN]), high=np.array([V_MAX/self.v_action_scale, PHI_MAX]), dtype=np.float32)
+        return spaces.Box(low=np.array([V_MIN/self.v_action_scale, DPHI_MIN]), high=np.array([V_MAX/self.v_action_scale, DPHI_MAX]), dtype=np.float32)
 
     def reset(self):
         self.time = 0
@@ -429,7 +430,7 @@ class Sim(gym.Env):
         actions[:,0] = actions[:,0] * self.v_action_scale
 
         actions[:,0] = np.clip(actions[:,0], V_MIN, V_MAX)
-        actions[:,1] = np.clip(actions[:,1], PHI_MIN, PHI_MAX)
+        actions[:,1] = np.clip(actions[:,1], DPHI_MIN, DPHI_MAX)
 
         obs, reward, done, info = [], np.zeros(len(self.agents)), False, {}
 
