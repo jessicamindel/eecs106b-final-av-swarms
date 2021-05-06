@@ -425,7 +425,8 @@ class Sim(gym.Env):
         dtg = car.distance_to_goal()
         if car.prev_dist_to_goal != -1:
             #max: 10
-            reward += (dtg - car.prev_dist_to_goal) / 5
+            reward += (car.prev_dist_to_goal - dtg) / 5
+            pass
         car.prev_dist_to_goal = dtg
         
         """
