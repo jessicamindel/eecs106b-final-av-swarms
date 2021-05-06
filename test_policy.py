@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210418_2004_40/model.pkl'
 # POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210505_1219_46/model.pkl'
-POLICY_FILENAME = '/Users/himty/Downloads/maps/task2a_moreborders.png20210506_0759_12/model.pkl'
+POLICY_FILENAME = '/Users/himty/Downloads/maps/task4_moreborders.png20210506_0830_56/model.pkl'
 # POLICY_FILENAME = '/Users/himty/Downloads/maps/task2a_moreborders.png20210505_2222_11/model.pkl'
 # POLICY_FILENAME = '/Users/himty/Downloads/maps/task3_moreborders.png20210505_2315_14/model.pkl'
 # POLICY_FILENAME = '/Users/himty/Downloads/maps/task4_moreborders.png20210505_2222_17/model.pkl'
@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--angle-noise', type=float, default=0.0, required=False)
     parser.add_argument('--save-video', action='store_true', default=False, required=False)
     parser.add_argument('--nogui', action='store_true', default=False, required=False)
+    parser.add_argument('--collision-penalty', choices=['none', 'low'], default='none', required=False)
 
     args = parser.parse_args()
 
@@ -45,7 +46,8 @@ def main():
         args.num_cars, args.map_path, args.path_reversal_prob or 0,
         args.angle_min or 0, args.angle_max or 2*np.pi,
         angle_mode=args.angle_mode, angle_noise=args.angle_noise,
-        timestep=args.timestep, save_video=args.save_video
+        timestep=args.timestep, save_video=args.save_video, 
+        collision_penalty=args.collision_penalty
     )
     # WARNING: This must match the environment for the saved policy. See the main() method of train.py
     # env = rendezvous.RendezvousEnv(nr_agents=20,

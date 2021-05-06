@@ -36,6 +36,7 @@ LIDAR_N = 10
 
 DPHI_PENALTY_THRESHOLD = np.pi/200 # FIXME: May be too small or large?
 DPHI_PENALTY_MAX = np.pi/40 # FIXME: May be too small or large?
+DPHI_PENALTY_AMOUNT = 30/200
 
 N_NEARBY_CARS = 3
 
@@ -220,10 +221,14 @@ class Sim(gym.Env):
         angle_min=-np.pi, angle_max=np.pi, spawn_padding=1,
         angle_mode='auto', angle_noise=0.0,
         save_video=False, timestep=0.1, max_episode_steps=80,
-        endpoint_mode='region' # or 'point'
+        endpoint_mode='region', collision_penalty='none'
     ):
+        assert endpoint_mode in ['region', 'point']
+        assert collision_penalty in ['none', 'low']
         if angle_noise != 0:
             assert angle_mode == "auto_noise"
+
+        self.collision_penalty = collision_penalty
         self.save_video = save_video
         self.timestep = timestep
         self.spawn_padding = spawn_padding
@@ -439,12 +444,13 @@ class Sim(gym.Env):
         # Penalize map collisions
         if car.collided or self.map.car_has_boundary_collision(np.array((x, y)), theta):
             car.collide()
-            # reward -= 3
+            if self.collision_penalty == "low":
+                reward -= 0.5
         # Penalize large rotational velocity
         if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
             # FIXME: Tweak values and also function shape (right now it's a shrug)
-            # reward -= 20*lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
-            pass
+            if self.collision_penalty == "low":
+                reward -= lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, DPHI_PENALTY_AMOUNT)
         return reward
 
     def step(self, actions):
@@ -479,7 +485,8 @@ class Sim(gym.Env):
         
         # Penalize collisions between cars
         num_car_collisions = self.check_collisions()
-        # reward -= num_car_collisions * 3
+        if self.collision_penalty == "low":
+            reward -= num_car_collisions * 3
 
         # TODO: Maybe penalize time
 

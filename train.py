@@ -31,6 +31,7 @@ def train(num_timesteps, base_log_dir):
     parser.add_argument('--timestep', type=float, required=False, default=0.1)
     parser.add_argument('--angle-mode', choices=['auto', 'auto_noise', 'random'], default='auto', required=False)
     parser.add_argument('--angle-noise', type=float, default=0.0, required=False)
+    parser.add_argument('--collision-penalty', choices=['none', 'low'], default='none', required=False)
 
     args = parser.parse_args()
 
@@ -56,7 +57,7 @@ def train(num_timesteps, base_log_dir):
         args.num_cars, args.map_path, args.path_reversal_prob or 0,
         args.angle_min or 0, args.angle_max or 2*np.pi,
         angle_mode=args.angle_mode, angle_noise=args.angle_noise,
-        timestep=args.timestep
+        timestep=args.timestep, collision_penalty=args.collision_penalty
     )
     # env = rendezvous.RendezvousEnv(nr_agents=20,
     #                                obs_mode='sum_obs_acc',

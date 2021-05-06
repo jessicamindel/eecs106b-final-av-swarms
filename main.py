@@ -16,6 +16,7 @@ if __name__ == '__main__':
 	parser.add_argument('--angle-mode', choices=['auto', 'auto_noise', 'random'], default='auto', required=False)
 	parser.add_argument('--angle-noise', type=float, default=0.0, required=False)
 	parser.add_argument('--endpoint-mode', choices=['region', 'point'], default='region', required=False)
+	parser.add_argument('--collision-penalty', choices=['none', 'low'], default='none', required=False)
 
 	args = parser.parse_args()
 
@@ -31,7 +32,7 @@ if __name__ == '__main__':
 		args.angle_min or 0, args.angle_max or 2*np.pi,
 		angle_mode=args.angle_mode, angle_noise=args.angle_noise,
 		save_video=args.save_video, timestep=args.timestep,
-		endpoint_mode=args.endpoint_mode
+		endpoint_mode=args.endpoint_mode, collision_penalty=args.collision_penalty
 	)
 	
 	if not args.nogui:
