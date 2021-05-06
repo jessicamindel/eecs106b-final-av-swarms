@@ -11,8 +11,8 @@ from gym import spaces
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
 
-PHI_MIN = -np.pi/2
-PHI_MAX = np.pi/2 
+PHI_MIN = -np.pi/30
+PHI_MAX = np.pi/30
 
 V_MIN = -100
 V_MAX = 100
@@ -420,13 +420,16 @@ class Sim(gym.Env):
         # Penalize large rotational velocity
         if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
             # FIXME: Tweak values and also function shape (right now it's a shrug)
-            reward -= lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            reward -= 20*lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
         return reward
 
     def step(self, actions):
         '''actions: (v, dphi)'''
         actions = np.array(actions)
         actions[:,0] = actions[:,0] * self.v_action_scale
+
+        actions[:,0] = np.clip(actions[:,0], V_MIN, V_MAX)
+        actions[:,1] = np.clip(actions[:,1], PHI_MIN, PHI_MAX)
 
         obs, reward, done, info = [], np.zeros(len(self.agents)), False, {}
 
