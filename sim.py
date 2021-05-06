@@ -14,7 +14,7 @@ from gym import spaces
 PHI_MIN = -np.pi/2 * 0.6
 PHI_MAX = np.pi/30 * 0.6
 
-V_MIN = 0
+V_MIN = -10
 V_MAX = 100
 
 DPHI_MIN = -np.pi/30
