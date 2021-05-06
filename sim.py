@@ -11,8 +11,8 @@ from gym import spaces
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
 
-PHI_MIN = -np.pi/2
-PHI_MAX = np.pi/2 
+PHI_MIN = -np.pi/30
+PHI_MAX = np.pi/30
 
 V_MIN = -100
 V_MAX = 100
@@ -217,14 +217,19 @@ class Sim(gym.Env):
         num_cars, map_img_path, path_reversal_probability=0,
         angle_min=-np.pi, angle_max=np.pi, spawn_padding=1,
         angle_mode='auto', angle_noise=0.0,
-        save_video=True, timestep=0.1, max_episode_steps=80,
+        save_video=False, timestep=0.1, max_episode_steps=80,
         endpoint_mode='region' # or 'point'
     ):
+        if angle_noise != 0:
+            assert angle_mode == "auto_noise"
         self.save_video = save_video
         self.timestep = timestep
         self.spawn_padding = spawn_padding
         self.max_episode_steps = max_episode_steps
         self.num_cars = num_cars
+
+        # The policy only has to output values from 0 to 1. Doesn't need to do big numbers
+        self.v_action_scale = abs(V_MAX / 1)
 
         self.map = Map(
             map_img_path, path_reversal_probability,
@@ -268,11 +273,7 @@ class Sim(gym.Env):
     @property
     def action_space(self):
         # Actino space of one car
-        return spaces.Box(low=np.array([V_MIN, PHI_MIN]), high=np.array([V_MAX, PHI_MAX]), dtype=np.float32)
-
-    @property
-    def is_terminal(self):
-        return len(self.agents) == 0 or self.time >= self.max_episode_steps
+        return spaces.Box(low=np.array([V_MIN/self.v_action_scale, PHI_MIN]), high=np.array([V_MAX/self.v_action_scale, PHI_MAX]), dtype=np.float32)
 
     def reset(self):
         self.time = 0
@@ -421,12 +422,18 @@ class Sim(gym.Env):
         # Penalize large rotational velocity
         if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
             # FIXME: Tweak values and also function shape (right now it's a shrug)
-            reward -= lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            reward -= 20*lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
         return reward
 
     def step(self, actions):
         '''actions: (v, dphi)'''
-        obs, reward, done, info = [], 0, False, {}
+        actions = np.array(actions)
+        actions[:,0] = actions[:,0] * self.v_action_scale
+
+        actions[:,0] = np.clip(actions[:,0], V_MIN, V_MAX)
+        actions[:,1] = np.clip(actions[:,1], PHI_MIN, PHI_MAX)
+
+        obs, reward, done, info = [], np.zeros(len(self.agents)), False, {}
 
         self.time += 1
 
@@ -434,7 +441,7 @@ class Sim(gym.Env):
         for i, (car, action) in enumerate(zip(self.agents, actions)):
             v, dphi = action
             car.step(action, self.timestep)
-            reward += self.get_per_car_reward(car, action)
+            reward[i] += self.get_per_car_reward(car, action)
             # Once car reaches goal, prepare to remove from simulation
             if car.reached_goal():
                 to_remove.insert(0, i)
@@ -442,7 +449,7 @@ class Sim(gym.Env):
         to_remove_non_rl = []
         for i, car in enumerate(self.non_rl_cars):
             action = car.step(self.timestep)
-            reward += self.get_per_car_reward(car, action)
+            reward[i] += self.get_per_car_reward(car, action)
             # Once car reaches goal, prepare to remove from simulation
             if car.reached_goal():
                 to_remove_non_rl.insert(0, i)
@@ -462,7 +469,7 @@ class Sim(gym.Env):
             self.remove_car(i, non_rl=True)
 
         # Check number of cars remaining
-        done = len(self.agents) == 0 and len(self.non_rl_cars) == 0
+        done = self.time >= self.max_episode_steps or (len(self.agents) == 0 and len(self.non_rl_cars) == 0)
 
         return obs, reward, done, info
 
