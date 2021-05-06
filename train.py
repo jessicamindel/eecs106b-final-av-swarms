@@ -21,7 +21,7 @@ from sim import Sim
 import pdb
 
 
-def train(num_timesteps, log_dir):
+def train(num_timesteps, base_log_dir):
     parser = argparse.ArgumentParser(description='Run autonomous vehicle swarm simulation.')
     parser.add_argument('num_cars', type=int)
     parser.add_argument('map_path')
@@ -33,6 +33,9 @@ def train(num_timesteps, log_dir):
     parser.add_argument('--angle-noise', type=float, default=0.0, required=False)
 
     args = parser.parse_args()
+
+    dstr = datetime.datetime.now().strftime('%Y%m%d_%H%M_%S')
+    log_dir = base_log_dir + args.map_path + dstr
 
     import deep_rl_for_swarms.common.tf_util as U
     sess = U.single_threaded_session()
@@ -70,10 +73,9 @@ def train(num_timesteps, log_dir):
 
 
 def main():
-    env_id = "Rendezvous-v0"
-    dstr = datetime.datetime.now().strftime('%Y%m%d_%H%M_%S')
-    log_dir = '/tmp/baselines/trpo_test/rendezvous/' + dstr
-    train(num_timesteps=1e7, log_dir=log_dir)
+    env_id = "AV-Swarms"
+    base_log_dir = '/home/cc/ee106b/sp21/class/ee106b-aad/data/av_sim/'
+    train(num_timesteps=1e7, base_log_dir=base_log_dir)
 
 
 if __name__ == '__main__':
