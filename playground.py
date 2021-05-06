@@ -10,7 +10,7 @@ if __name__ == '__main__':
 	fig.canvas.set_window_title('AV Swarm Simulator')
 	plt.show()
 
-	s = Sim(0, 'maps/task1a_moreborders.png', save_video=False)
+	s = Sim(0, 'maps/task2a_moreborders.png', save_video=False)
 	s.add_manual_car(fig)
 	# s.add_random_car(4)
 	# s.spawn_car(340, 580, np.pi/6, 0, 0)
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 	car_actions = [rng.choice(ACTIONS) for _ in range(NUM_CARS)]
 
 	for i in range(1000):
-		s.step(car_actions)
+		s.step([[]])
 		s.render(ax=ax)
 		plt.pause(0.01)
 

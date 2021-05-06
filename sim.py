@@ -428,10 +428,11 @@ class Sim(gym.Env):
     def step(self, actions):
         '''actions: (v, dphi)'''
         actions = np.array(actions)
-        actions[:,0] = actions[:,0] * self.v_action_scale
+        if actions.shape[0] > 0 and actions.shape[1] > 0:
+            actions[:,0] = actions[:,0] * self.v_action_scale
 
-        actions[:,0] = np.clip(actions[:,0], V_MIN, V_MAX)
-        actions[:,1] = np.clip(actions[:,1], PHI_MIN, PHI_MAX)
+            actions[:,0] = np.clip(actions[:,0], V_MIN, V_MAX)
+            actions[:,1] = np.clip(actions[:,1], PHI_MIN, PHI_MAX)
 
         obs, reward, done, info = [], np.zeros(len(self.agents)), False, {}
 
@@ -449,7 +450,7 @@ class Sim(gym.Env):
         to_remove_non_rl = []
         for i, car in enumerate(self.non_rl_cars):
             action = car.step(self.timestep)
-            reward[i] += self.get_per_car_reward(car, action)
+            reward += self.get_per_car_reward(car, action)
             # Once car reaches goal, prepare to remove from simulation
             if car.reached_goal():
                 to_remove_non_rl.insert(0, i)
