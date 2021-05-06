@@ -273,10 +273,6 @@ class Sim(gym.Env):
         # Actino space of one car
         return spaces.Box(low=np.array([V_MIN/self.v_action_scale, PHI_MIN]), high=np.array([V_MAX/self.v_action_scale, PHI_MAX]), dtype=np.float32)
 
-    @property
-    def is_terminal(self):
-        return len(self.agents) == 0 or self.time >= self.max_episode_steps
-
     def reset(self):
         self.time = 0
         self.non_rl_cars = []
@@ -432,7 +428,7 @@ class Sim(gym.Env):
         actions = np.array(actions)
         actions[:,0] = actions[:,0] * self.v_action_scale
 
-        obs, reward, done, info = [], 0, False, {}
+        obs, reward, done, info = [], np.zeros(len(self.agents)), False, {}
 
         self.time += 1
 
@@ -440,7 +436,7 @@ class Sim(gym.Env):
         for i, (car, action) in enumerate(zip(self.agents, actions)):
             v, dphi = action
             car.step(action, self.timestep)
-            reward += self.get_per_car_reward(car, action)
+            reward[i] += self.get_per_car_reward(car, action)
             # Once car reaches goal, prepare to remove from simulation
             if car.reached_goal():
                 to_remove.insert(0, i)
@@ -448,7 +444,7 @@ class Sim(gym.Env):
         to_remove_non_rl = []
         for i, car in enumerate(self.non_rl_cars):
             action = car.step(self.timestep)
-            reward += self.get_per_car_reward(car, action)
+            reward[i] += self.get_per_car_reward(car, action)
             # Once car reaches goal, prepare to remove from simulation
             if car.reached_goal():
                 to_remove_non_rl.insert(0, i)
@@ -468,7 +464,7 @@ class Sim(gym.Env):
             self.remove_car(i, non_rl=True)
 
         # Check number of cars remaining
-        done = len(self.agents) == 0 and len(self.non_rl_cars) == 0
+        done = self.time >= self.max_episode_steps or (len(self.agents) == 0 and len(self.non_rl_cars) == 0)
 
         return obs, reward, done, info
 
