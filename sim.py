@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import itertools
 
 from utils import *
-from sim_map import Map
+from sim_map import *
 
 import gym
 from gym import spaces
@@ -46,7 +46,7 @@ class Car:
 
     def __init__(self, start_state, goal_state, width, height, is_rational=True):
         self.state = np.array(start_state)
-        self.goal_state = np.array(goal_state) # x, y; theta and phi can be anything
+        self.goal_state = goal_state # A GoalState object from sim_map
         self.is_rational = is_rational # TODO: Implement human-driven car!
         self.width = width
         self.height = height
@@ -99,14 +99,14 @@ class Car:
 
     def distance_to_goal(self):
         x, y, _, _ = self.state
-        x_g, y_g = self.goal_state
+        x_g, y_g = self.goal_state.get_goal_pos()
         return np.sqrt((x - x_g)**2 + (y - y_g)**2)
 
     # FIXME: Should probably make the threshold smaller eventually.
-    def reached_goal(self, threshold=20):
-        x, y, theta, _ = self.state
-        return point_in_rect(self.goal_state, (x, y), theta, self.width, self.height, padding=threshold)
-        # return self.distance_to_goal() <= threshold
+    def reached_goal(self, padding=None):
+        if padding is None:
+            padding = 0 if type(self.goal_state).__name__ == 'RegionGoalState' else 20
+        return self.goal_state.reached_goal(self, padding=padding)
 
     def collide(self):
         # Sets collided to true and stops the car and stuff
@@ -217,7 +217,8 @@ class Sim(gym.Env):
         num_cars, map_img_path, path_reversal_probability=0,
         angle_min=-np.pi, angle_max=np.pi, spawn_padding=1,
         angle_mode='auto', angle_noise=0.0,
-        save_video=True, timestep=0.1, max_episode_steps=80
+        save_video=True, timestep=0.1, max_episode_steps=80,
+        endpoint_mode='region' # or 'point'
     ):
         self.save_video = save_video
         self.timestep = timestep
@@ -229,7 +230,8 @@ class Sim(gym.Env):
             map_img_path, path_reversal_probability,
             angle_min, angle_max,
             angle_mode, angle_noise,
-            LIDAR_MIN, LIDAR_MAX
+            LIDAR_MIN, LIDAR_MAX,
+            endpoint_mode
         )
 
         self.actual_n_nearby_cars = min(N_NEARBY_CARS, self.num_cars-1)
@@ -282,13 +284,13 @@ class Sim(gym.Env):
             start, end, start_angle = self.map.choose_path(padding=self.spawn_padding)
             if not self.check_collisions_with(*start, start_angle, padding=self.spawn_padding):
                 i += 1
-                self.spawn_car(*start, start_angle, *end)
+                self.spawn_car(*start, start_angle, end)
             # else: print(i, 'collided')
 
         return self.get_obs()
 
-    def spawn_car(self, x, y, theta, x_goal, y_goal):
-        car = Car((x, y, theta, 0), (x_goal, y_goal), self.map.car_width, self.map.car_height)
+    def spawn_car(self, x, y, theta, goal_state):
+        car = Car((x, y, theta, 0), goal_state, self.map.car_width, self.map.car_height)
         self.agents.append(car)
 
     def add_manual_car(self, figure,
