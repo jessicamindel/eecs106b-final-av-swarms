@@ -95,7 +95,12 @@ class Map:
         self.start_points[:,0] = start_points[1] # col = x
         self.start_points[:,1] = start_points[0] # row = y
 
-        end_thresh = np.logical_and(img_r == 255, np.logical_and(img_g < 250, img_b < 250))
+        end_dir_points = np.where(np.logical_and(img_r == 255, np.logical_and(img_g == 0, img_b == 0)))
+        self.end_dir_points = np.ones((len(end_dir_points[0]), 2))
+        self.end_dir_points[:,0] = end_dir_points[1] # col = x
+        self.end_dir_points[:,1] = end_dir_points[0] # row = y
+
+        end_thresh = np.logical_and(img_r == 255, np.logical_and(np.logical_and(img_g < 250, img_g > 0), np.logical_and(img_b < 250, img_b > 0)))
         end_points = np.where(end_thresh)
         self.end_points = np.zeros((len(end_points[0]), 2))
         self.end_points[:,0] = end_points[1] # col = x
@@ -163,8 +168,9 @@ class Map:
         # Choose angle
         if self.angle_mode[:4] == 'auto':
             # Find the nearest point along the direction line
-            nearest_dir_idx = np.argmin(np.linalg.norm(self.start_dir_points - start, axis=1))
-            dir_vec = start - self.start_dir_points[nearest_dir_idx]
+            dir_points = self.end_dir_points if reverse_path else self.start_dir_points
+            nearest_dir_idx = np.argmin(np.linalg.norm(dir_points - start, axis=1))
+            dir_vec = start - dir_points[nearest_dir_idx]
             # Determine the angle using the resulting vector
             start_angle = np.mod(-np.arctan2(*dir_vec), 2*np.pi)
             if self.angle_mode == 'auto_noise':
