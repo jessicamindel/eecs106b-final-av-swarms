@@ -14,7 +14,7 @@ from gym import spaces
 PHI_MIN = -np.pi/2 * 0.6
 PHI_MAX = np.pi/30 * 0.6
 
-V_MIN = -100
+V_MIN = -10
 V_MAX = 100
 
 DPHI_MIN = -np.pi/30
@@ -40,6 +40,7 @@ DPHI_PENALTY_MAX = np.pi/40 # FIXME: May be too small or large?
 N_NEARBY_CARS = 3
 
 class Car:
+    prev_dist_to_goal = -1
     state = np.array([0,0,0,0]) #x, y, theta, phi
     velocity = np.array([0,0,0,0]) #dx, dy, theta, dphi
     collided = False
@@ -280,21 +281,26 @@ class Sim(gym.Env):
         self.time = 0
         self.non_rl_cars = []
         self.agents = []
-        i = 0
-        while i < self.num_cars:
-            # TODO: Possibly add the ability to add cars mid-simulation.
+        for i in range(self.num_cars):
+            self.spawn_car_choosepath()
+        return self.get_obs()
+    
+
+    def spawn_car(self, x, y, theta, goal_state, ind = -1):
+        car = Car((x, y, theta, 0), goal_state, self.map.car_width, self.map.car_height)
+        if ind == -1:
+            self.agents.append(car)
+        else:
+            self.agents[ind] = car
+            
+    def spawn_car_choosepath(self, ind = -1):
+        while True:
             start, end, start_angle = self.map.choose_path(padding=self.spawn_padding)
             if not self.check_collisions_with(*start, start_angle, padding=self.spawn_padding):
-                i += 1
-                self.spawn_car(*start, start_angle, end)
-            # else: print(i, 'collided')
+                self.spawn_car(*start, start_angle, end, ind)
+                break
 
-        return self.get_obs()
-
-    def spawn_car(self, x, y, theta, goal_state):
-        car = Car((x, y, theta, 0), goal_state, self.map.car_width, self.map.car_height)
-        self.agents.append(car)
-
+            
     def add_manual_car(self, figure,
         key_forward='up', key_back='down', key_left='left', key_right='right',
         key_v_up='j', key_v_down='h', key_dphi_up='u', key_dphi_down='y'
@@ -415,17 +421,30 @@ class Sim(gym.Env):
         x, y, theta, phi = car.state
         v, dphi = action
         reward = 0
+        
+        dtg = car.distance_to_goal()
+        if car.prev_dist_to_goal != -1:
+            #max: 10
+            reward += (car.prev_dist_to_goal - dtg) / 5
+            pass
+        car.prev_dist_to_goal = dtg
+        
+        """
         # Reward closeness to goal
         # The *30 and min(...,3) basically means to try to get within 10 pixels of the target
         reward += min(1/car.distance_to_goal()*30, 3)
+        """
+        
+        
         # Penalize map collisions
         if car.collided or self.map.car_has_boundary_collision(np.array((x, y)), theta):
             car.collide()
-            reward -= 3
+            # reward -= 3
         # Penalize large rotational velocity
         if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
             # FIXME: Tweak values and also function shape (right now it's a shrug)
-            reward -= 20*lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            # reward -= 20*lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            pass
         return reward
 
     def step(self, actions):
@@ -460,7 +479,7 @@ class Sim(gym.Env):
         
         # Penalize collisions between cars
         num_car_collisions = self.check_collisions()
-        reward -= num_car_collisions * 3
+        # reward -= num_car_collisions * 3
 
         # TODO: Maybe penalize time
 
@@ -468,7 +487,7 @@ class Sim(gym.Env):
 
         # Remove finished cars
         for i in to_remove:
-            self.remove_car(i)
+            self.spawn_car_choosepath(i)
         for i in to_remove_non_rl:
             self.remove_car(i, non_rl=True)
 
