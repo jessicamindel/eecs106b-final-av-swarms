@@ -438,11 +438,12 @@ class Sim(gym.Env):
         # Penalize map collisions
         if car.collided or self.map.car_has_boundary_collision(np.array((x, y)), theta):
             car.collide()
-            reward -= 3
+            # reward -= 3
         # Penalize large rotational velocity
         if np.abs(dphi) <= DPHI_PENALTY_THRESHOLD:
             # FIXME: Tweak values and also function shape (right now it's a shrug)
-            reward -= 20*lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            # reward -= 20*lerp(normalize_between(np.abs(dphi), DPHI_PENALTY_THRESHOLD, DPHI_PENALTY_MAX), 0, 1/200)
+            pass
         return reward
 
     def step(self, actions):
@@ -477,7 +478,7 @@ class Sim(gym.Env):
         
         # Penalize collisions between cars
         num_car_collisions = self.check_collisions()
-        reward -= num_car_collisions * 3
+        # reward -= num_car_collisions * 3
 
         # TODO: Maybe penalize time
 
