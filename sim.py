@@ -11,14 +11,14 @@ from gym import spaces
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
 
-PHI_MIN = -np.pi/30
-PHI_MAX = np.pi/30
+PHI_MIN = -np.pi/2 * 0.6
+PHI_MAX = np.pi/30 * 0.6
 
 V_MIN = -100
 V_MAX = 100
 
-DPHI_MIN = -5
-DPHI_MAX = 5
+DPHI_MIN = -np.pi/30
+DPHI_MAX = np.pi/30
 
 V_MANUAL_INCREMENT = 5.0
 DPHI_MANUAL_INCREMENT = 0.001
@@ -94,6 +94,7 @@ class Car:
         if not self.collided:
             self.control(*action)
             self.state += timestep * self.velocity
+            self.state[3] = np.clip(self.state[3], PHI_MIN, PHI_MAX)
             return action
         return (0, 0)
 
@@ -273,7 +274,7 @@ class Sim(gym.Env):
     @property
     def action_space(self):
         # Actino space of one car
-        return spaces.Box(low=np.array([V_MIN/self.v_action_scale, PHI_MIN]), high=np.array([V_MAX/self.v_action_scale, PHI_MAX]), dtype=np.float32)
+        return spaces.Box(low=np.array([V_MIN/self.v_action_scale, DPHI_MIN]), high=np.array([V_MAX/self.v_action_scale, DPHI_MAX]), dtype=np.float32)
 
     def reset(self):
         self.time = 0
@@ -390,9 +391,11 @@ class Sim(gym.Env):
         obs = []
         # Get observation (LIDAR, current velocity and pos, vel and pos of nearby cars)
         for car in self.agents:
-            car_raycast = self.lidar(car)
+            # Disabling car raycast for speed
+            # car_raycast = self.lidar(car)
             map_raycast = self.map.lidar(car, LIDAR_N)
-            raycast = [min(c, m) for c, m in zip(car_raycast, map_raycast)]
+            # raycast = [min(c, m) for c, m in zip(car_raycast, map_raycast)]
+            raycast = map_raycast
             neighbors = self.nearby_cars(car, N_NEARBY_CARS)
             
             curr_obs = []
