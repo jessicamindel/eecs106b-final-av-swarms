@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 # POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210418_2004_40/model.pkl'
 # POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210505_1219_46/model.pkl'
-# POLICY_FILENAME = '/Users/himty/Downloads/maps/task1a_moreborders.png20210505_1723_37/model.pkl'
-POLICY_FILENAME = '/Users/himty/Downloads/maps/task2a_moreborders.png20210505_1732_54/model.pkl'
+POLICY_FILENAME = '/Users/himty/Downloads/maps/task1a_moreborders.png20210505_2014_42/model.pkl'
+# POLICY_FILENAME = '/Users/himty/Downloads/maps/task2a_moreborders.png20210505_1732_54/model.pkl'
 
 def main():
     parser = argparse.ArgumentParser(description='Run autonomous vehicle swarm simulation.')
