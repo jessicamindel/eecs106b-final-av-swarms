@@ -391,9 +391,11 @@ class Sim(gym.Env):
         obs = []
         # Get observation (LIDAR, current velocity and pos, vel and pos of nearby cars)
         for car in self.agents:
-            car_raycast = self.lidar(car)
+            # Disabling car raycast for speed
+            # car_raycast = self.lidar(car)
             map_raycast = self.map.lidar(car, LIDAR_N)
-            raycast = [min(c, m) for c, m in zip(car_raycast, map_raycast)]
+            # raycast = [min(c, m) for c, m in zip(car_raycast, map_raycast)]
+            raycast = map_raycast
             neighbors = self.nearby_cars(car, N_NEARBY_CARS)
             
             curr_obs = []
