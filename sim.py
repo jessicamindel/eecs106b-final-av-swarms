@@ -40,6 +40,7 @@ DPHI_PENALTY_MAX = np.pi/40 # FIXME: May be too small or large?
 N_NEARBY_CARS = 3
 
 class Car:
+    prev_dist_to_goal = -1
     state = np.array([0,0,0,0]) #x, y, theta, phi
     velocity = np.array([0,0,0,0]) #dx, dy, theta, dphi
     collided = False
@@ -415,9 +416,20 @@ class Sim(gym.Env):
         x, y, theta, phi = car.state
         v, dphi = action
         reward = 0
+        
+        dtg = car.distance_to_goal()
+        if car.prev_dist_to_goal != -1:
+            #max: 10
+            reward += (dtg - car.prev_dist_to_goal()) / 5
+        car.prev_dist_to_goal = dtg
+        
+        ```
         # Reward closeness to goal
         # The *30 and min(...,3) basically means to try to get within 10 pixels of the target
         reward += min(1/car.distance_to_goal()*30, 3)
+        ```
+        
+        
         # Penalize map collisions
         if car.collided or self.map.car_has_boundary_collision(np.array((x, y)), theta):
             car.collide()
