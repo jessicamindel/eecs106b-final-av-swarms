@@ -11,10 +11,13 @@ from gym import spaces
 # https://gist.github.com/danieljfarrell/faf7c4cafd683db13cbc
 # public domain
 
+# Assume policy always outputs things in [-POLICY_ACTION_MAX, POLICY_ACTION_MAX]
+POLICY_ACTION_MAX = 10
+
 PHI_MIN = -np.pi/2 * 0.6
 PHI_MAX = np.pi/2 * 0.6
 
-V_MIN = -10
+V_MIN = -100
 V_MAX = 100
 
 DPHI_MIN = -np.pi/30
@@ -47,6 +50,11 @@ class Car:
     collided = False
 
     def __init__(self, start_state, goal_state, width, height, is_rational=True):
+        # For simplicity in scaling
+        assert DPHI_MIN == -DPHI_MAX
+        assert PHI_MIN == -PHI_MAX
+        assert V_MIN == -V_MAX
+
         self.state = np.array(start_state)
         self.goal_state = goal_state # A GoalState object from sim_map
         self.is_rational = is_rational # TODO: Implement human-driven car!
@@ -235,9 +243,6 @@ class Sim(gym.Env):
         self.max_episode_steps = max_episode_steps
         self.num_cars = num_cars
 
-        # The policy only has to output values from 0 to 1. Doesn't need to do big numbers
-        self.v_action_scale = abs(V_MAX / 1)
-
         self.map = Map(
             map_img_path, path_reversal_probability,
             angle_min, angle_max,
@@ -245,6 +250,9 @@ class Sim(gym.Env):
             LIDAR_MIN, LIDAR_MAX,
             endpoint_mode
         )
+
+        self.v_scale = POLICY_ACTION_MAX / V_MAX
+        self.dphi_scale = POLICY_ACTION_MAX / DPHI_MAX
 
         self.actual_n_nearby_cars = min(N_NEARBY_CARS, self.num_cars-1)
 
@@ -279,8 +287,8 @@ class Sim(gym.Env):
 
     @property
     def action_space(self):
-        # Actino space of one car
-        return spaces.Box(low=np.array([V_MIN/self.v_action_scale, DPHI_MIN]), high=np.array([V_MAX/self.v_action_scale, DPHI_MAX]), dtype=np.float32)
+        # Action space of one car
+        return spaces.Box(low=np.array([-POLICY_ACTION_MAX]*2), high=np.array([POLICY_ACTION_MAX]), dtype=np.float32)
 
     def reset(self):
         self.time = 0
@@ -457,10 +465,11 @@ class Sim(gym.Env):
         '''actions: (v, dphi)'''
         actions = np.array(actions)
         if actions.shape[0] > 0 and actions.shape[1] > 0:
-            actions[:,0] = actions[:,0] * self.v_action_scale
+            actions[:,0] = actions[:,0] / self.v_scale
+            actions[:,1] = actions[:,1] / self.dphi_scale
 
             actions[:,0] = np.clip(actions[:,0], V_MIN, V_MAX)
-            actions[:,1] = np.clip(actions[:,1], PHI_MIN, PHI_MAX)
+            actions[:,1] = np.clip(actions[:,1], DPHI_MIN, DPHI_MAX)
 
         obs, reward, done, info = [], np.zeros(len(self.agents)), False, {}
 
