@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210418_2004_40/model.pkl'
 # POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210505_1219_46/model.pkl'
-POLICY_FILENAME = '/Users/himty/Downloads/maps/task4_moreborders.png20210506_1125_29/model.pkl'
+POLICY_FILENAME = '/Users/himty/Downloads/maps/task4_moreborders.png20210506_1045_33/model.pkl'
 # POLICY_FILENAME = '/Users/himty/Downloads/maps/task2a_moreborders.png20210505_2222_11/model.pkl'
 # POLICY_FILENAME = '/Users/himty/Downloads/maps/task3_moreborders.png20210505_2315_14/model.pkl'
 # POLICY_FILENAME = '/Users/himty/Downloads/maps/task4_moreborders.png20210505_2222_17/model.pkl'
@@ -32,7 +32,7 @@ def main():
 
     args = parser.parse_args()
 
-    if self.save_video:
+    if args.save_video:
         assert not args.nogui
 
     # WARNING: This must match the class of the saved policy. See the main() method in train.py
