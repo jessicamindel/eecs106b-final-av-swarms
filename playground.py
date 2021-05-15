@@ -3,9 +3,17 @@ from sim import Sim, ManualCar
 import matplotlib.pyplot as plt
 import argparse
 
-TASK1_POLICY = "policies/task1a_moreborders.png20210510_2138_44.pkl"
-TASK2_POLICY = "policies/task2a_moreborders.png20210510_2139_17.pkl"
-TAKS4_POLICY = "policies/task4_moreborders.png20210510_2139_28.pkl"
+POLICY_FILES = {
+	'task1': "policies/task1a_moreborders.png20210510_2138_44.pkl",
+	'task2': "policies/task2a_moreborders.png20210510_2139_17.pkl",
+	'task3': "policies/task4_moreborders.png20210510_2139_28.pkl"
+}
+
+MAP_FILES = {
+	'task1': "maps/task1a_moreborders.png",
+	'task2': "maps/task2a_moreborders.png",
+	'task4': "maps/task4_moreborders.png"
+}
 
 NUM_RL_CARS = 3
 
@@ -38,14 +46,7 @@ if __name__ == '__main__':
 	parser.add_argument("control_car_type", type=str, choices=['random', 'human'])
 	args = parser.parse_args()
 
-	if args.task == 'task1':
-		policy_filename = TASK1_POLICY
-	elif args.task == 'task2':
-		policy_filename = TASK2_POLICY
-	elif args.task == 'task4':
-		policy_filename = TAKS4_POLICY
-	else:
-		raise ValueError("No such task")
+	policy_filename = POLICY_FILES[args.task]
 
 	rng = np.random.default_rng(42)
 	if args.other_cars_type == "random":
@@ -60,7 +61,7 @@ if __name__ == '__main__':
 	fig.canvas.set_window_title('AV Swarm Simulator')
 	plt.show()
 
-	s = Sim(NUM_RL_CARS, 'maps/task4.png', save_video=True)
+	s = Sim(NUM_RL_CARS, MAP_FILES[args.task], save_video=True)
 	obs = s.reset() # Do this BEFORE adding a manual or random car
 
 	if args.control_car_type == "human":
