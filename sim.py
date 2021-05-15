@@ -41,7 +41,7 @@ DPHI_PENALTY_THRESHOLD = np.pi/200 # FIXME: May be too small or large?
 DPHI_PENALTY_MAX = np.pi/40 # FIXME: May be too small or large?
 DPHI_PENALTY_AMOUNT = 30/200
 
-N_NEARBY_CARS = 3
+N_NEARBY_CARS = 2
 
 class Car:
     prev_dist_to_goal = -1
@@ -508,7 +508,7 @@ class Sim(gym.Env):
             self.remove_car(i, non_rl=True)
 
         # Check number of cars remaining
-        done = self.time >= self.max_episode_steps or (len(self.agents) == 0 and len(self.non_rl_cars) == 0)
+        done = self.time >= self.max_episode_steps
 
         return obs, reward, done, info
 
