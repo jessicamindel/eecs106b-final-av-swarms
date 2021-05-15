@@ -299,7 +299,7 @@ class Map:
                 self.draw_car(ax, x, y, angle, center='text', text=f'M{i}', front_color='blue')
                 # Draw goal point
                 plt.plot(*car.goal_state.get_goal_pos(), 'bo', markersize=10)
-                plt.text(*car.goal_state.get_goal_pos(), f'M{i}', c='white', fontsize=6, ha='center', va='center')
+                plt.text(*car.goal_state.get_goal_pos(), f'M{i}', color='white', fontsize=6, ha='center', va='center')
                 # Draw velocity information
                 plt.text(*self.user_text_point, f'Step size:\nv: {car.v_curr}\ndphi: {car.dphi_curr}', fontsize=6, ha='left', va='top')
             if classname == 'RandomCar':
