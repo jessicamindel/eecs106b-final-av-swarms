@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utils import *
+import csv
 
 def main():
     """
@@ -42,19 +43,40 @@ def main():
     plt.show(),
     """
 
-    TASK1_FILE = '/Users/himty/Downloads/maps/task1a_moreborders.png20210510_2138_44/progress.csv'
+    conf = {
+        'task1': {
+            'file': '/Users/himty/Downloads/maps/task1a_moreborders.png20210510_2138_44/progress.csv',
+        },
+        'task2': {
+            'file': '/Users/himty/Downloads/maps/task2a_moreborders.png20210510_2139_17/progress.csv',
+        },
+        'task3': {
+            'file': '/Users/himty/Downloads/maps/task4_moreborders.png20210510_2139_28/progress.csv',
+        },
 
-    import csv
-    with open(TASK1_FILE, newline='') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
-        for row in spamreader:
-            print(', '.join(row))
+        'tasks': ['task1', 'task2', 'task3'],
+        'columns': ['EpRewMean', "EpisodesSoFar"]
+    }
 
-    # data = data4_forward
-    # plt.plot(list(range(len(data))), data)
-    # plt.title("Episode Return Means Over Rounds of TRPO")
-    # plt.xlabel("Rounds")
-    # plt.ylabel("Episode Reward Mean")
-    # plt.show()
+    data = {}
+    for task in conf['tasks']:
+        data[task] = {col: [] for col in conf['columns']}
+
+        with open(conf[task]['file'], newline='') as csvfile:
+            spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+
+            headers = next(spamreader)[0].split(',')
+            col_indices = [headers.index(col) for col in conf['columns']]
+            for row in spamreader:
+                for col, col_idx in zip(conf['columns'], col_indices):
+                    data[task][col].append(float(row[0].split(',')[col_idx]))
+
+    for task, task_data in data.items():
+        plt.plot(task_data['EpisodesSoFar'], task_data['EpRewMean'], label=task)
+    plt.title("Episode Return Means Episodes Used in TRPO")
+    plt.xlabel("Episodes")
+    plt.ylabel("Episode Reward Mean")
+    plt.legend()
+    plt.show()
 
 if __name__ == "__main__": main(),

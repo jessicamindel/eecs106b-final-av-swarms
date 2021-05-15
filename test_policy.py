@@ -8,13 +8,14 @@ import numpy as np
 import argparse
 from sim import Sim
 import matplotlib.pyplot as plt
+import scipy
 
-# POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210418_2004_40/model.pkl'
-# POLICY_FILENAME = '/tmp/baselines/trpo_test/rendezvous/20210505_1219_46/model.pkl'
-POLICY_FILENAME = '/Users/himty/Downloads/maps/task4_moreborders.png20210510_2141_05/model.pkl'
-# POLICY_FILENAME = '/Users/himty/Downloads/maps/task2a_moreborders.png20210505_2222_11/model.pkl'
-# POLICY_FILENAME = '/Users/himty/Downloads/maps/task3_moreborders.png20210505_2315_14/model.pkl'
-# POLICY_FILENAME = '/Users/himty/Downloads/maps/task4_moreborders.png20210505_2222_17/model.pkl'
+POLICY_FILES = {
+    'maps/task1a_moreborders.png': "policies/task1a_moreborders.png20210510_2138_44.pkl",
+    'maps/task2a_moreborders.png': "policies/task2a_moreborders.png20210510_2139_17.pkl",
+    'maps/task4_moreborders.png': "policies/task4_moreborders.png20210510_2139_28.pkl",
+    'maps/urbanish.png': "policies/task2a_moreborders.png20210510_2139_17.pkl"
+}
 
 def main():
     parser = argparse.ArgumentParser(description='Run autonomous vehicle swarm simulation.')
@@ -29,8 +30,11 @@ def main():
     parser.add_argument('--save-video', action='store_true', default=False, required=False)
     parser.add_argument('--nogui', action='store_true', default=False, required=False)
     parser.add_argument('--collision-penalty', choices=['none', 'low'], default='none', required=False)
+    parser.add_argument('--num_episodes', type=int, default=1, required=False)
 
     args = parser.parse_args()
+
+    POLICY_FILENAME = POLICY_FILES[args.map_path]
 
     if args.save_video:
         assert not args.nogui
@@ -43,8 +47,7 @@ def main():
     # Load the policy
     po = ActWrapper.load(POLICY_FILENAME, policy_fn)
 
-    print('save video?', args.save_video)
-
+    # WARNING: This must match the environment for the saved policy. See the main() method of train.py
     env = Sim(
         args.num_cars, args.map_path, args.path_reversal_prob or 0,
         args.angle_min or 0, args.angle_max or 2*np.pi,
@@ -52,17 +55,7 @@ def main():
         timestep=args.timestep, save_video=args.save_video, 
         collision_penalty=args.collision_penalty
     )
-    # WARNING: This must match the environment for the saved policy. See the main() method of train.py
-    # env = rendezvous.RendezvousEnv(nr_agents=20,
-    #                                obs_mode='sum_obs_acc',
-    #                                comm_radius=100 * np.sqrt(2),
-    #                                world_size=100,
-    #                                distance_bins=8,
-    #                                bearing_bins=8,
-    #                                torus=False,
-    #                                dynamics='unicycle_acc')
 
-    
     if not args.nogui:
         # Create window for rendering
         plt.ion()
@@ -72,17 +65,33 @@ def main():
         env.render(ax=ax)
         plt.pause(0.01)
 
-    obs = env.reset()
-
     stochastic = True # idk why not
-    done = False
-    while not done:
-        ac, vpred = po._act.act(stochastic, obs)
-        obs, reward, done, info = env.step(ac)
-        print('reward', reward)
-        if not args.nogui:
-            env.render(ax=ax)
-            plt.pause(0.01)
+    returns = []
+    collisions = []
+    goals = []
+    for i in range(args.num_episodes):
+        obs = env.reset()
+        done = False
+        ep_return = 0
+        while not done:
+            ac, vpred = po._act.act(stochastic, obs)
+            obs, reward, done, info = env.step(ac)
+            ep_return += reward
+            if not args.nogui:
+                env.render(ax=ax)
+                plt.pause(0.01)
+
+        collisions.append(env.check_collisions())
+        goals.append(env.goals_reached)
+        returns.append(ep_return)
+        if i % 10 == 0:
+            print(i)
+
+    returns = np.array(returns).sum(axis=1) / args.num_cars
+    print(f"avg returns ${np.sum(returns)/len(returns):.2f}\\pm{scipy.stats.sem(returns):.2f}$")
+    print(f"avg goals ${np.sum(goals)/len(goals):.2f}\\pm{scipy.stats.sem(goals):.2f}$")
+    print(f"avg collisions ${np.sum(collisions)/len(collisions):.2f}\\pm{scipy.stats.sem(collisions):.2f}$")
+
     env.close()
 
 if __name__ == "__main__":

@@ -2,17 +2,20 @@ import numpy as np
 from sim import Sim, ManualCar
 import matplotlib.pyplot as plt
 import argparse
+import scipy
 
 POLICY_FILES = {
 	'task1': "policies/task1a_moreborders.png20210510_2138_44.pkl",
 	'task2': "policies/task2a_moreborders.png20210510_2139_17.pkl",
-	'task3': "policies/task4_moreborders.png20210510_2139_28.pkl"
+	'task3': "policies/task4_moreborders.png20210510_2139_28.pkl",
+	'task4': "policies/task4_moreborders.png20210510_2139_28.pkl"
 }
 
 MAP_FILES = {
 	'task1': "maps/task1a_moreborders.png",
 	'task2': "maps/task2a_moreborders.png",
-	'task4': "maps/task4_moreborders.png"
+	'task3': "maps/task4_moreborders.png",
+	'task4': "maps/urbanish.png"
 }
 
 NUM_RL_CARS = 3
@@ -41,9 +44,13 @@ def get_random_action_func():
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Run autonomous vehicle swarm simulation.')
-	parser.add_argument('task', type=str, choices=['task1', 'task2', 'task4'])
+	parser.add_argument('task', type=str, choices=['task1', 'task2', 'task3', 'task4'])
 	parser.add_argument('other_cars_type', type=str, choices=['random', 'policy'])
 	parser.add_argument("control_car_type", type=str, choices=['random', 'human'])
+	parser.add_argument('--num_episodes', type=int, default=1, required=False)
+	parser.add_argument('--save-video', action='store_true', default=False, required=False)
+	parser.add_argument('--nogui', action='store_true', default=False, required=False)
+
 	args = parser.parse_args()
 
 	policy_filename = POLICY_FILES[args.task]
@@ -56,26 +63,49 @@ if __name__ == '__main__':
 	else:
 		raise ValueError()
 
-	plt.ion()
-	fig, ax = plt.subplots(figsize=(8,8))
-	fig.canvas.set_window_title('AV Swarm Simulator')
-	plt.show()
+	if not args.nogui:
+		plt.ion()
+		fig, ax = plt.subplots(figsize=(8,8))
+		fig.canvas.set_window_title('AV Swarm Simulator')
+		plt.show()
 
-	s = Sim(NUM_RL_CARS, MAP_FILES[args.task], save_video=True)
-	obs = s.reset() # Do this BEFORE adding a manual or random car
+	s = Sim(NUM_RL_CARS, MAP_FILES[args.task], save_video=args.save_video)
 
-	if args.control_car_type == "human":
-		s.add_manual_car(fig)
-	elif args.control_car_type == "random":
-		s.add_random_car()
+	returns = []
+	collisions = []
+	goals = []
+	for i in range(args.num_episodes):
+		done = False
+		ep_return = 0
+		obs = s.reset() # Do this BEFORE adding a manual or random car
 
-	obs = s.get_obs()
+		if args.control_car_type == "human":
+			s.add_manual_car(fig)
+		elif args.control_car_type == "random":
+			s.add_random_car()
 
-	s.render(ax=ax)
-	plt.pause(0.01)
-	for i in range(150):
-		obs, reward, done, info = s.step(get_car_actions(obs))
-		s.render(ax=ax)
-		plt.pause(0.01)
+		obs = s.get_obs()
+
+		if not args.nogui:
+			s.render(ax=ax)
+			plt.pause(0.01)
+
+		while not done:
+			obs, reward, done, info = s.step(get_car_actions(obs))
+			ep_return += reward
+			if not args.nogui:
+				s.render(ax=ax)
+				plt.pause(0.01)
+		if i % 10 == 0:
+			print(i)
+
+		collisions.append(s.check_collisions())
+		goals.append(s.goals_reached)
+		returns.append(ep_return)
+
+	returns = np.array(returns).sum(axis=1) / NUM_RL_CARS
+	print(f"avg returns ${np.sum(returns)/len(returns):.2f}\\pm{scipy.stats.sem(returns):.2f}$")
+	print(f"avg goals ${np.sum(goals)/len(goals):.2f}\\pm{scipy.stats.sem(goals):.2f}$")
+	print(f"avg collisions ${np.sum(collisions)/len(collisions):.2f}\\pm{scipy.stats.sem(collisions):.2f}$")
 
 	s.close()
