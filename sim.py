@@ -291,6 +291,7 @@ class Sim(gym.Env):
         return spaces.Box(low=np.array([-POLICY_ACTION_MAX]*2), high=np.array([POLICY_ACTION_MAX]), dtype=np.float32)
 
     def reset(self):
+        self.goals_reached = 0
         self.time = 0
         self.non_rl_cars = []
         self.agents = []
@@ -483,6 +484,7 @@ class Sim(gym.Env):
             # Once car reaches goal, prepare to remove from simulation
             if car.reached_goal():
                 to_remove.insert(0, i)
+                self.goals_reached += 1
 
         to_remove_non_rl = []
         for i, car in enumerate(self.non_rl_cars):
